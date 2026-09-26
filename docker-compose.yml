@@ -1,0 +1,33 @@
+# Runs the central database and API on the server laptop:
+#   docker compose up -d --build
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: maktabatna
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maktabatna}
+      POSTGRES_DB: maktabatna
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maktabatna"]
+      interval: 10s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://maktabatna:${POSTGRES_PASSWORD:-maktabatna}@db:5432/maktabatna
+      PORT: 3000
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:

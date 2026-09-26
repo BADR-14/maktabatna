@@ -1,0 +1,305 @@
+// Central database. Mirrors the phone schema in apps/mobile/src/db/schema.ts:
+// same tables, same UUID ids, same epoch-millisecond timestamps (BigInt), so sync copies rows as-is.
+// Every synced table carries: id, created_at, updated_at, deleted_at, created_by, updated_by, field_clock.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String  @id @db.Uuid
+  createdAt    BigInt  @map("created_at")
+  updatedAt    BigInt  @map("updated_at")
+  deletedAt    BigInt? @map("deleted_at")
+  createdBy    String? @map("created_by") @db.Uuid
+  updatedBy    String? @map("updated_by") @db.Uuid
+  fieldClock   Json    @default("{}") @map("field_clock")
+  displayName  String  @map("display_name")
+  username     String  @unique
+  /// Server only: never synced to phones.
+  passwordHash String  @map("password_hash")
+
+  @@index([updatedAt])
+  @@map("users")
+}
+
+model Room {
+  id         String     @id @db.Uuid
+  createdAt  BigInt     @map("created_at")
+  updatedAt  BigInt     @map("updated_at")
+  deletedAt  BigInt?    @map("deleted_at")
+  createdBy  String?    @map("created_by") @db.Uuid
+  updatedBy  String?    @map("updated_by") @db.Uuid
+  fieldClock Json       @default("{}") @map("field_clock")
+  name       String
+  sortOrder  Int        @default(0) @map("sort_order")
+  widthCm    Float?     @map("width_cm")
+  depthCm    Float?     @map("depth_cm")
+  heightCm   Float?     @map("height_cm")
+  notes      String?
+  bookcases  Bookcase[]
+
+  @@index([updatedAt])
+  @@map("rooms")
+}
+
+enum BookcaseKind {
+  open
+  glass
+}
+
+model Bookcase {
+  id          String       @id @db.Uuid
+  createdAt   BigInt       @map("created_at")
+  updatedAt   BigInt       @map("updated_at")
+  deletedAt   BigInt?      @map("deleted_at")
+  createdBy   String?      @map("created_by") @db.Uuid
+  updatedBy   String?      @map("updated_by") @db.Uuid
+  fieldClock  Json         @default("{}") @map("field_clock")
+  roomId      String       @map("room_id") @db.Uuid
+  room        Room         @relation(fields: [roomId], references: [id])
+  number      Int
+  name        String
+  kind        BookcaseKind
+  wall        String?
+  offsetCm    Float?       @map("offset_cm")
+  elevationCm Float?       @map("elevation_cm")
+  widthCm     Float?       @map("width_cm")
+  heightCm    Float?       @map("height_cm")
+  depthCm     Float?       @map("depth_cm")
+  notes       String?
+  sections    Section[]
+
+  @@index([roomId])
+  @@index([updatedAt])
+  @@map("bookcases")
+}
+
+model Section {
+  id         String   @id @db.Uuid
+  createdAt  BigInt   @map("created_at")
+  updatedAt  BigInt   @map("updated_at")
+  deletedAt  BigInt?  @map("deleted_at")
+  createdBy  String?  @map("created_by") @db.Uuid
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  fieldClock Json     @default("{}") @map("field_clock")
+  bookcaseId String   @map("bookcase_id") @db.Uuid
+  bookcase   Bookcase @relation(fields: [bookcaseId], references: [id])
+  number     Int
+  widthRatio Float    @default(1) @map("width_ratio")
+  shelves    Shelf[]
+
+  @@index([bookcaseId])
+  @@index([updatedAt])
+  @@map("sections")
+}
+
+enum ShelfKind {
+  shelf
+  top
+}
+
+model Shelf {
+  id          String    @id @db.Uuid
+  createdAt   BigInt    @map("created_at")
+  updatedAt   BigInt    @map("updated_at")
+  deletedAt   BigInt?   @map("deleted_at")
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+  fieldClock  Json      @default("{}") @map("field_clock")
+  sectionId   String    @map("section_id") @db.Uuid
+  section     Section   @relation(fields: [sectionId], references: [id])
+  number      Int
+  kind        ShelfKind @default(shelf)
+  hasBackRow  Boolean   @default(false) @map("has_back_row")
+  heightCm    Float?    @map("height_cm")
+  volumes     Volume[]
+
+  @@index([sectionId])
+  @@index([updatedAt])
+  @@map("shelves")
+}
+
+model Category {
+  id         String  @id @db.Uuid
+  createdAt  BigInt  @map("created_at")
+  updatedAt  BigInt  @map("updated_at")
+  deletedAt  BigInt? @map("deleted_at")
+  createdBy  String? @map("created_by") @db.Uuid
+  updatedBy  String? @map("updated_by") @db.Uuid
+  fieldClock Json    @default("{}") @map("field_clock")
+  name       String
+  sortOrder  Int     @default(0) @map("sort_order")
+  books      Book[]
+
+  @@index([updatedAt])
+  @@map("categories")
+}
+
+model Person {
+  id             String       @id @db.Uuid
+  createdAt      BigInt       @map("created_at")
+  updatedAt      BigInt       @map("updated_at")
+  deletedAt      BigInt?      @map("deleted_at")
+  createdBy      String?      @map("created_by") @db.Uuid
+  updatedBy      String?      @map("updated_by") @db.Uuid
+  fieldClock     Json         @default("{}") @map("field_clock")
+  name           String
+  nameNorm       String       @map("name_norm")
+  deathYearHijri Int?         @map("death_year_hijri")
+  books          BookPerson[]
+
+  @@index([nameNorm])
+  @@index([updatedAt])
+  @@map("persons")
+}
+
+model Book {
+  id           String       @id @db.Uuid
+  createdAt    BigInt       @map("created_at")
+  updatedAt    BigInt       @map("updated_at")
+  deletedAt    BigInt?      @map("deleted_at")
+  createdBy    String?      @map("created_by") @db.Uuid
+  updatedBy    String?      @map("updated_by") @db.Uuid
+  fieldClock   Json         @default("{}") @map("field_clock")
+  title        String
+  titleNorm    String       @map("title_norm")
+  categoryId   String?      @map("category_id") @db.Uuid
+  category     Category?    @relation(fields: [categoryId], references: [id])
+  publisher    String?
+  edition      String?
+  totalVolumes Int          @default(1) @map("total_volumes")
+  notes        String?
+  persons      BookPerson[]
+  copies       Copy[]
+
+  @@index([titleNorm])
+  @@index([categoryId])
+  @@index([updatedAt])
+  @@map("books")
+}
+
+enum PersonRole {
+  author
+  editor
+  commentator
+  translator
+}
+
+model BookPerson {
+  id         String     @id @db.Uuid
+  createdAt  BigInt     @map("created_at")
+  updatedAt  BigInt     @map("updated_at")
+  deletedAt  BigInt?    @map("deleted_at")
+  createdBy  String?    @map("created_by") @db.Uuid
+  updatedBy  String?    @map("updated_by") @db.Uuid
+  fieldClock Json       @default("{}") @map("field_clock")
+  bookId     String     @map("book_id") @db.Uuid
+  book       Book       @relation(fields: [bookId], references: [id])
+  personId   String     @map("person_id") @db.Uuid
+  person     Person     @relation(fields: [personId], references: [id])
+  role       PersonRole
+  sortOrder  Int        @default(0) @map("sort_order")
+
+  @@index([bookId])
+  @@index([personId])
+  @@index([updatedAt])
+  @@map("book_persons")
+}
+
+model Copy {
+  id         String   @id @db.Uuid
+  createdAt  BigInt   @map("created_at")
+  updatedAt  BigInt   @map("updated_at")
+  deletedAt  BigInt?  @map("deleted_at")
+  createdBy  String?  @map("created_by") @db.Uuid
+  updatedBy  String?  @map("updated_by") @db.Uuid
+  fieldClock Json     @default("{}") @map("field_clock")
+  bookId     String   @map("book_id") @db.Uuid
+  book       Book     @relation(fields: [bookId], references: [id])
+  notes      String?
+  volumes    Volume[]
+  loans      Loan[]
+
+  @@index([bookId])
+  @@index([updatedAt])
+  @@map("copies")
+}
+
+enum ShelfRow {
+  front
+  back
+}
+
+enum Placement {
+  standing
+  lying
+  on_top
+}
+
+model Volume {
+  id           String    @id @db.Uuid
+  createdAt    BigInt    @map("created_at")
+  updatedAt    BigInt    @map("updated_at")
+  deletedAt    BigInt?   @map("deleted_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  updatedBy    String?   @map("updated_by") @db.Uuid
+  fieldClock   Json      @default("{}") @map("field_clock")
+  copyId       String    @map("copy_id") @db.Uuid
+  copy         Copy      @relation(fields: [copyId], references: [id])
+  shelfId      String    @map("shelf_id") @db.Uuid
+  shelf        Shelf     @relation(fields: [shelfId], references: [id])
+  volumeNumber Int?      @map("volume_number")
+  row          ShelfRow  @default(front)
+  placement    Placement @default(standing)
+  /// Fractional-index key: order on the shelf from the right.
+  position     String
+  notes        String?
+
+  @@index([shelfId, row, position])
+  @@index([copyId])
+  @@index([updatedAt])
+  @@map("volumes")
+}
+
+model Loan {
+  id         String  @id @db.Uuid
+  createdAt  BigInt  @map("created_at")
+  updatedAt  BigInt  @map("updated_at")
+  deletedAt  BigInt? @map("deleted_at")
+  createdBy  String? @map("created_by") @db.Uuid
+  updatedBy  String? @map("updated_by") @db.Uuid
+  fieldClock Json    @default("{}") @map("field_clock")
+  copyId     String  @map("copy_id") @db.Uuid
+  copy       Copy    @relation(fields: [copyId], references: [id])
+  borrower   String
+  loanedAt   BigInt  @map("loaned_at")
+  dueAt      BigInt? @map("due_at")
+  returnedAt BigInt? @map("returned_at")
+  notes      String?
+
+  @@index([copyId])
+  @@index([updatedAt])
+  @@map("loans")
+}
+
+model ChangeLog {
+  id        String  @id @db.Uuid
+  tableName String  @map("table_name")
+  rowId     String  @map("row_id") @db.Uuid
+  field     String
+  oldValue  String? @map("old_value")
+  newValue  String? @map("new_value")
+  changedBy String? @map("changed_by") @db.Uuid
+  changedAt BigInt  @map("changed_at")
+
+  @@index([tableName, rowId])
+  @@index([changedAt])
+  @@map("change_log")
+}
