@@ -1,0 +1,14 @@
+{
+  "name": "maktabatna",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w @maktabatna/mobile",
+    "server": "npm run start:dev -w @maktabatna/server",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
