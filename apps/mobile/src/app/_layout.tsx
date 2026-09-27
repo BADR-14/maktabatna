@@ -6,8 +6,10 @@ import Storage from 'expo-sqlite/kv-store';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { DevSettings, I18nManager, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import migrations from '../../drizzle/migrations';
+import { SessionProvider, useSession } from '@/auth/session';
 import { db } from '@/db/client';
 import { fonts, useColors } from '@/theme';
 
@@ -38,8 +40,9 @@ export default function RootLayout() {
   const ready = (fontsLoaded && migrated) || !!migrationError;
 
   useEffect(() => {
-    if (ready) SplashScreen.hideAsync();
-  }, [ready]);
+    if (migrationError) SplashScreen.hideAsync();
+  }, [migrationError]);
+
 
   if (migrationError) {
     return (
@@ -53,20 +56,47 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.primary },
-          headerTintColor: colors.onPrimary,
-          headerTitleStyle: { fontFamily: fonts.display, fontSize: 22 },
-          headerTitleAlign: 'center',
-          contentStyle: { backgroundColor: colors.background },
-        }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SessionProvider>
+        <StatusBar style="light" />
+        <RootStack />
+      </SessionProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+/** Signed-out people only see login/register; everything else needs an account. */
+function RootStack() {
+  const colors = useColors();
+  const { status } = useSession();
+
+  useEffect(() => {
+    if (status !== 'loading') SplashScreen.hideAsync();
+  }, [status]);
+
+  if (status === 'loading') return null;
+  const signedIn = status === 'signedIn';
+
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.primary },
+        headerTintColor: colors.onPrimary,
+        headerTitleStyle: { fontFamily: fonts.display, fontSize: 22 },
+        headerTitleAlign: 'center',
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}>
+      <Stack.Protected guard={signedIn}>
         <Stack.Screen name="index" options={{ title: 'مكتبتنا' }} />
-        <Stack.Screen name="bookcase/[id]" options={{ title: '' }} />
-      </Stack>
-    </>
+        <Stack.Screen name="room/[id]" options={{ title: '' }} />
+        <Stack.Screen name="shelf/[id]" options={{ title: '' }} />
+      </Stack.Protected>
+      <Stack.Protected guard={!signedIn}>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+      </Stack.Protected>
+    </Stack>
   );
 }
 

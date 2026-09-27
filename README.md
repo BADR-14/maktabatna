@@ -16,42 +16,52 @@ packages/shared  كود مشترك: تطبيع النص العربي، والأ�
 
 ---
 
-## تشغيل التطبيق على موبايلك (لابتوب الشغل، ويندوز)
+## التشغيل على لابتوب الشغل (ويندوز)
 
-**مرة وحدة بس:**
-1. نزّل **Git** و**Node.js LTS** (القسم 5 بملف المشروع).
-2. نزّل **Expo Go** على الموبايل من Play Store.
-3. افتح **PowerShell** وجيب المشروع:
+التطبيق بيحتاج شغلتين شغّالين على اللابتوب:
+1. **السيرفر**، مشان تسجيل الدخول.
+2. **سيرفر التطوير تبع Expo**، يلي بيبعت التطبيق للموبايل.
+
+### مرة وحدة بس
+1. نزّل **Git** و**Node.js LTS** و**Docker Desktop** (القسم 5 بملف المشروع)، وشغّل Docker Desktop.
+2. نزّل **Expo Go** على الموبايل من Play Store، و**وقّف التحديث التلقائي** إلو.
+3. بـ PowerShell:
    ```powershell
    git clone https://github.com/BADR-14/maktabatna.git
    cd maktabatna
    npm install
    ```
+4. اعمل ملف الإعدادات `.env`، وغيّر `bayt2026` لرمز الدعوة يلي بدك ياه:
+   ```powershell
+   $secret = -join ((48..57)+(65..90)+(97..122) | Get-Random -Count 48 | ForEach-Object {[char]$_})
+   Set-Content .env "JWT_SECRET=$secret`nINVITE_CODE=bayt2026`nPOSTGRES_PASSWORD=maktabatna"
+   ```
+   رمز الدعوة هو يلي بيحتاجه أهل البيت ليفتحوا حساب.
 
-**كل مرة:**
+### كل مرة
+**1. شغّل السيرفر** (Docker Desktop لازم يكون شغّال):
 ```powershell
 cd maktabatna
+git checkout -- package-lock.json
 git pull
 npm install
-npm run mobile
-```
-- رح يطلعلك **QR code** بالـ PowerShell. افتح Expo Go على الموبايل وامسحه.
-- **لازم** الموبايل واللابتوب يكونوا على **نفس الواي فاي**.
-- **أول مرة** التطبيق رح يعيد تشغيل حاله مرة وحدة مشان يقلب لليمين لليسار. هاد طبيعي.
-
-> إذا ما اشتغل المسح بسبب الشبكة، شغّل `npm run start -w @maktabatna/mobile -- --tunnel`.
-
----
-
-## تشغيل السيرفر (مرحلة 4، مش ضروري هلأ)
-
-**للتجربة على لابتوب الشغل** (بيحتاج Docker Desktop):
-```powershell
 docker compose up -d --build
 ```
-بعدها افتح `http://localhost:3000/health` بالمتصفح، ولازم يطلعلك `{"status":"ok"}`.
+للتأكد، افتح `http://localhost:3000/health` بالمتصفح، ولازم يطلع `{"status":"ok"}`.
 
-**على لابتوب السيرفر:** نفس الأمر، وبعد كل تحديث:
+**2. شغّل التطبيق:**
+```powershell
+npm run mobile -- --clear
+```
+- امسح الـ **QR** بـ Expo Go. الموبايل لازم يكون على **نفس الواي فاي**، **والـ VPN مطفي**.
+- أول مرة: اكبس **«افتح حساب جديد»**، وحط رمز الدعوة.
+- إذا طلب Windows Firewall إذن لـ Docker أو Node، اختار **Allow**.
+
+> إذا ما قدر التطبيق يوصل للسيرفر، اكبس «عنوان السيرفر» بشاشة الدخول. لازم يكون `http://<عنوان اللابتوب>:3000`، وهو نفس العنوان يلي بيطلع جنب `exp://` بالـ PowerShell.
+
+## لابتوب السيرفر (لاحقاً)
+
+نفس خطوات السيرفر فوق، وبعد كل تحديث:
 ```powershell
 git pull
 docker compose up -d --build

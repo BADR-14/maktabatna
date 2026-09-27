@@ -57,11 +57,24 @@ model Room {
   widthCm    Float?     @map("width_cm")
   depthCm    Float?     @map("depth_cm")
   heightCm   Float?     @map("height_cm")
+  /// Doors and windows for the 3D shell (same JSON as the phone).
+  openings   Json       @default("[]")
   notes      String?
   bookcases  Bookcase[]
 
   @@index([updatedAt])
   @@map("rooms")
+}
+
+enum WallSide {
+  back
+  left
+  right
+}
+
+enum Finish {
+  wood
+  aluminum
 }
 
 enum BookcaseKind {
@@ -83,6 +96,8 @@ model Bookcase {
   name        String
   kind        BookcaseKind
   wall        String?
+  wallSide    WallSide?    @map("wall_side")
+  finish      Finish       @default(wood)
   offsetCm    Float?       @map("offset_cm")
   elevationCm Float?       @map("elevation_cm")
   widthCm     Float?       @map("width_cm")

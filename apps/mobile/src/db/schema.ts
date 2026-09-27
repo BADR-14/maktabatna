@@ -34,6 +34,8 @@ export const rooms = sqliteTable('rooms', {
   widthCm: real('width_cm'),
   depthCm: real('depth_cm'),
   heightCm: real('height_cm'),
+  /** Doors and windows for the 3D shell: JSON array of { kind, wall, offsetCm, widthCm, heightCm, elevationCm }. */
+  openings: text('openings').notNull().default('[]'),
   notes: text('notes'),
 });
 
@@ -48,7 +50,13 @@ export const bookcases = sqliteTable(
     kind: text('kind', { enum: ['open', 'glass'] }).notNull(),
     /** Free label for the wall it hangs on, e.g. "الحيط الطويل". */
     wall: text('wall'),
-    // Placement and size for the 3D view, in centimetres (null until measured).
+    /**
+     * Placement for the 3D view. Room origin is the back-left corner seen from inside:
+     * 'back' runs left→right, 'left' and 'right' run from the back wall towards the viewer.
+     * offsetCm is the distance from that wall's start to the bookcase's nearest edge.
+     */
+    wallSide: text('wall_side', { enum: ['back', 'left', 'right'] }),
+    finish: text('finish', { enum: ['wood', 'aluminum'] }).notNull().default('wood'),
     offsetCm: real('offset_cm'),
     elevationCm: real('elevation_cm'),
     widthCm: real('width_cm'),
