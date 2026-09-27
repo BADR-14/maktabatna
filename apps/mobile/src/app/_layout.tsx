@@ -1,7 +1,3 @@
-import { Amiri_700Bold } from '@expo-google-fonts/amiri/700Bold';
-import { IBMPlexSansArabic_400Regular } from '@expo-google-fonts/ibm-plex-sans-arabic/400Regular';
-import { IBMPlexSansArabic_500Medium } from '@expo-google-fonts/ibm-plex-sans-arabic/500Medium';
-import { IBMPlexSansArabic_600SemiBold } from '@expo-google-fonts/ibm-plex-sans-arabic/600SemiBold';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -31,11 +27,12 @@ if (!I18nManager.isRTL) {
 
 export default function RootLayout() {
   const colors = useColors();
+  // Font files live in the repo (assets/fonts, OFL licensed); keys match `fonts` in src/theme.
   const [fontsLoaded] = useFonts({
-    Amiri_700Bold,
-    IBMPlexSansArabic_400Regular,
-    IBMPlexSansArabic_500Medium,
-    IBMPlexSansArabic_600SemiBold,
+    [fonts.display]: require('../../assets/fonts/Amiri-Bold.ttf'),
+    [fonts.regular]: require('../../assets/fonts/IBMPlexSansArabic-Regular.ttf'),
+    [fonts.medium]: require('../../assets/fonts/IBMPlexSansArabic-Medium.ttf'),
+    [fonts.semibold]: require('../../assets/fonts/IBMPlexSansArabic-SemiBold.ttf'),
   });
   const { success: migrated, error: migrationError } = useMigrations(db, migrations);
   const ready = (fontsLoaded && migrated) || !!migrationError;

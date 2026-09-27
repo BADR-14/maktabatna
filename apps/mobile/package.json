@@ -3,8 +3,6 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
-    "@expo-google-fonts/amiri": "^0.4.1",
-    "@expo-google-fonts/ibm-plex-sans-arabic": "^0.4.2",
     "@maktabatna/shared": "*",
     "drizzle-orm": "^0.45.3",
     "expo": "~57.0.25",
