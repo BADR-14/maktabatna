@@ -20,13 +20,19 @@ model User {
   createdBy     String?        @map("created_by") @db.Uuid
   updatedBy     String?        @map("updated_by") @db.Uuid
   fieldClock    Json           @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq       BigInt         @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   displayName   String         @map("display_name")
   username      String         @unique
-  /// Server only: never synced to phones.
-  passwordHash  String         @map("password_hash")
+  /// Server only: never synced to phones. Null for accounts that only sign in with Google.
+  passwordHash  String?        @map("password_hash")
+  /// Server only: the Google account ("sub") linked to this user, if any.
+  googleSub     String?        @unique @map("google_sub")
+  email         String?
   refreshTokens RefreshToken[]
 
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("users")
 }
 
@@ -52,6 +58,8 @@ model Room {
   createdBy  String?    @map("created_by") @db.Uuid
   updatedBy  String?    @map("updated_by") @db.Uuid
   fieldClock Json       @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt     @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   name       String
   sortOrder  Int        @default(0) @map("sort_order")
   widthCm    Float?     @map("width_cm")
@@ -63,6 +71,7 @@ model Room {
   bookcases  Bookcase[]
 
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("rooms")
 }
 
@@ -90,6 +99,8 @@ model Bookcase {
   createdBy   String?      @map("created_by") @db.Uuid
   updatedBy   String?      @map("updated_by") @db.Uuid
   fieldClock  Json         @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq     BigInt       @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   roomId      String       @map("room_id") @db.Uuid
   room        Room         @relation(fields: [roomId], references: [id])
   number      Int
@@ -108,6 +119,7 @@ model Bookcase {
 
   @@index([roomId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("bookcases")
 }
 
@@ -119,6 +131,8 @@ model Section {
   createdBy  String?  @map("created_by") @db.Uuid
   updatedBy  String?  @map("updated_by") @db.Uuid
   fieldClock Json     @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt   @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   bookcaseId String   @map("bookcase_id") @db.Uuid
   bookcase   Bookcase @relation(fields: [bookcaseId], references: [id])
   number     Int
@@ -127,6 +141,7 @@ model Section {
 
   @@index([bookcaseId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("sections")
 }
 
@@ -143,6 +158,8 @@ model Shelf {
   createdBy  String?   @map("created_by") @db.Uuid
   updatedBy  String?   @map("updated_by") @db.Uuid
   fieldClock Json      @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt    @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   sectionId  String    @map("section_id") @db.Uuid
   section    Section   @relation(fields: [sectionId], references: [id])
   number     Int
@@ -153,6 +170,7 @@ model Shelf {
 
   @@index([sectionId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("shelves")
 }
 
@@ -164,11 +182,14 @@ model Category {
   createdBy  String? @map("created_by") @db.Uuid
   updatedBy  String? @map("updated_by") @db.Uuid
   fieldClock Json    @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   name       String
   sortOrder  Int     @default(0) @map("sort_order")
   books      Book[]
 
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("categories")
 }
 
@@ -180,6 +201,8 @@ model Person {
   createdBy      String?      @map("created_by") @db.Uuid
   updatedBy      String?      @map("updated_by") @db.Uuid
   fieldClock     Json         @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq        BigInt       @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   name           String
   nameNorm       String       @map("name_norm")
   deathYearHijri Int?         @map("death_year_hijri")
@@ -187,6 +210,7 @@ model Person {
 
   @@index([nameNorm])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("persons")
 }
 
@@ -198,6 +222,8 @@ model Book {
   createdBy    String?      @map("created_by") @db.Uuid
   updatedBy    String?      @map("updated_by") @db.Uuid
   fieldClock   Json         @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq      BigInt       @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   title        String
   titleNorm    String       @map("title_norm")
   categoryId   String?      @map("category_id") @db.Uuid
@@ -212,6 +238,7 @@ model Book {
   @@index([titleNorm])
   @@index([categoryId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("books")
 }
 
@@ -230,6 +257,8 @@ model BookPerson {
   createdBy  String?    @map("created_by") @db.Uuid
   updatedBy  String?    @map("updated_by") @db.Uuid
   fieldClock Json       @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt     @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   bookId     String     @map("book_id") @db.Uuid
   book       Book       @relation(fields: [bookId], references: [id])
   personId   String     @map("person_id") @db.Uuid
@@ -240,6 +269,7 @@ model BookPerson {
   @@index([bookId])
   @@index([personId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("book_persons")
 }
 
@@ -251,6 +281,8 @@ model Copy {
   createdBy  String?  @map("created_by") @db.Uuid
   updatedBy  String?  @map("updated_by") @db.Uuid
   fieldClock Json     @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt   @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   bookId     String   @map("book_id") @db.Uuid
   book       Book     @relation(fields: [bookId], references: [id])
   notes      String?
@@ -259,6 +291,7 @@ model Copy {
 
   @@index([bookId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("copies")
 }
 
@@ -281,6 +314,8 @@ model Volume {
   createdBy    String?   @map("created_by") @db.Uuid
   updatedBy    String?   @map("updated_by") @db.Uuid
   fieldClock   Json      @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq      BigInt    @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   copyId       String    @map("copy_id") @db.Uuid
   copy         Copy      @relation(fields: [copyId], references: [id])
   shelfId      String    @map("shelf_id") @db.Uuid
@@ -295,6 +330,7 @@ model Volume {
   @@index([shelfId, row, position])
   @@index([copyId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("volumes")
 }
 
@@ -306,6 +342,8 @@ model Loan {
   createdBy  String? @map("created_by") @db.Uuid
   updatedBy  String? @map("updated_by") @db.Uuid
   fieldClock Json    @default("{}") @map("field_clock")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq    BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
   copyId     String  @map("copy_id") @db.Uuid
   copy       Copy    @relation(fields: [copyId], references: [id])
   borrower   String
@@ -316,6 +354,7 @@ model Loan {
 
   @@index([copyId])
   @@index([updatedAt])
+  @@index([syncSeq])
   @@map("loans")
 }
 
@@ -328,8 +367,11 @@ model ChangeLog {
   newValue  String? @map("new_value")
   changedBy String? @map("changed_by") @db.Uuid
   changedAt BigInt  @map("changed_at")
+  /// Server only: global change order, the cursor phones pull by.
+  syncSeq   BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
 
   @@index([tableName, rowId])
   @@index([changedAt])
+  @@index([syncSeq])
   @@map("change_log")
 }

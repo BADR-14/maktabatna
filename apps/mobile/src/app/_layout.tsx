@@ -14,7 +14,10 @@ import { SessionProvider, useSession } from '@/auth/session';
 import { HeaderSearch } from '@/components/header-search';
 import { Intro } from '@/components/intro';
 import { db } from '@/db/client';
-import { fonts, useColors } from '@/theme';
+import { startAutoSync } from '@/sync';
+import { applyStoredTheme, fonts, useColors } from '@/theme';
+
+applyStoredTheme();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -82,6 +85,11 @@ function RootStack() {
     if (status !== 'loading') SplashScreen.hideAsync();
   }, [status]);
 
+  // Keep this phone and the server in step while someone is signed in.
+  useEffect(() => {
+    if (status === 'signedIn') return startAutoSync();
+  }, [status]);
+
   if (status === 'loading') return null;
   const signedIn = status === 'signedIn';
 
@@ -106,6 +114,10 @@ function RootStack() {
         <Stack.Screen name="search" options={{ title: 'البحث', headerRight: () => null }} />
         <Stack.Screen name="profile" options={{ title: 'الملف الشخصي' }} />
         <Stack.Screen name="trash" options={{ title: 'سلة المحذوفات' }} />
+        <Stack.Screen name="stats" options={{ title: 'الإحصائيات' }} />
+        <Stack.Screen name="loans" options={{ title: 'الإعارات' }} />
+        <Stack.Screen name="data" options={{ title: 'الاستيراد والتصدير' }} />
+        <Stack.Screen name="book/history" options={{ title: 'سجل التعديلات' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" options={{ headerShown: false }} />

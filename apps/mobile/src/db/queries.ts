@@ -1,7 +1,8 @@
 import { and, asc, count, desc, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { db } from './client';
-import { bookPersons, bookcases, books, categories, copies, persons, rooms, sections, shelves, users, volumes } from './schema';
+import { DEMO_USER_ID } from './demo';
+import { bookPersons, bookcases, books, categories, copies, loans, persons, rooms, sections, shelves, users, volumes } from './schema';
 
 // Correlated subqueries name the outer table literally ("bookcases"."id"): in a single-table select
 // drizzle prints bare column names, which would be ambiguous inside the subquery.
@@ -297,13 +298,104 @@ export const allShelvesQuery = db
   .where(and(isNull(shelves.deletedAt), isNull(bookcases.deletedAt)))
   .orderBy(asc(rooms.sortOrder), asc(bookcases.number), asc(shelves.number));
 
-/** Titles in the trash, newest first. */
+/** How long deleted titles can be restored (docs/PROJECT_BRIEF.md: the trash keeps 30 days). */
+export const TRASH_DAYS = 30;
+
+/**
+ * Titles in the trash, newest first. After 30 days a title drops out of the trash for good; its
+ * rows stay as sync tombstones so the deletion reaches every phone. Removed samples aren't listed.
+ */
 export const trashQuery = db
   .select({ id: books.id, title: books.title, author: authorName, deletedAt: books.deletedAt, totalVolumes: books.totalVolumes })
   .from(books)
-  .where(isNotNull(books.deletedAt))
+  .where(
+    and(
+      isNotNull(books.deletedAt),
+      sql`${books.deletedAt} > cast(strftime('%s', 'now') as integer) * 1000 - ${TRASH_DAYS * 86_400_000}`,
+      sql`coalesce(${books.createdBy}, '') != ${DEMO_USER_ID}`,
+    ),
+  )
   .orderBy(desc(books.deletedAt));
 
 export function userQuery(id: string) {
   return db.select().from(users).where(eq(users.id, id));
+}
+
+/** Titles with more than one copy in the house. */
+export const duplicatesQuery = db
+  .select({ id: books.id, title: books.title, author: authorName, copies: sql<number>`count(${copies.id})` })
+  .from(books)
+  .innerJoin(copies, and(eq(copies.bookId, books.id), isNull(copies.deletedAt)))
+  .where(isNull(books.deletedAt))
+  .groupBy(books.id)
+  .having(sql`count(${copies.id}) > 1`)
+  .orderBy(asc(books.titleNorm));
+
+/** Each copy of a multi-volume set with the volume numbers it has; the screen works out the gaps. */
+export const setCopiesQuery = db
+  .select({
+    bookId: books.id,
+    title: books.title,
+    total: books.totalVolumes,
+    copyId: copies.id,
+    have: sql<string | null>`(select group_concat(v.volume_number) from ${volumes} v where v.copy_id = ${copies.id} and v.deleted_at is null)`,
+  })
+  .from(copies)
+  .innerJoin(books, eq(books.id, copies.bookId))
+  .where(and(isNull(copies.deletedAt), isNull(books.deletedAt), sql`${books.totalVolumes} > 1`))
+  .orderBy(asc(books.titleNorm));
+
+/** Everything that happened to a title: its own fields, its people, and moves of its volumes. */
+export function bookHistoryQuery(bookId: string) {
+  return lazy(() => db.all<{
+    id: string;
+    tableName: string;
+    rowId: string;
+    field: string;
+    oldValue: string | null;
+    newValue: string | null;
+    changedAt: number;
+    changedBy: string | null;
+    who: string | null;
+  }>(sql`
+    select l.id, l.table_name tableName, l.row_id rowId, l.field, l.old_value oldValue, l.new_value newValue, l.changed_at changedAt,
+      l.changed_by changedBy, u.display_name who
+    from change_log l left join users u on u.id = l.changed_by
+    where (l.table_name = 'books' and l.row_id = ${bookId})
+       or (l.table_name = 'volumes' and l.row_id in (select v.id from volumes v join copies c on c.id = v.copy_id where c.book_id = ${bookId}))
+       or (l.table_name = 'loans' and l.row_id in (select lo.id from loans lo join copies c on c.id = lo.copy_id where c.book_id = ${bookId}))
+    order by l.changed_at desc
+    limit 200`));
+}
+
+/** Wraps a raw synchronous query so it runs only when awaited (as useLiveQuery does). */
+function lazy<T>(run: () => T): PromiseLike<T> {
+  return { then: (ok, fail) => Promise.resolve().then(run).then(ok, fail) };
+}
+
+/** Loans, open ones first. */
+export const loansQuery = db
+  .select({
+    id: loans.id,
+    borrower: loans.borrower,
+    loanedAt: loans.loanedAt,
+    dueAt: loans.dueAt,
+    returnedAt: loans.returnedAt,
+    notes: loans.notes,
+    bookId: books.id,
+    title: books.title,
+  })
+  .from(loans)
+  .innerJoin(copies, eq(copies.id, loans.copyId))
+  .innerJoin(books, eq(books.id, copies.bookId))
+  .where(isNull(loans.deletedAt))
+  .orderBy(sql`${loans.returnedAt} is not null`, desc(loans.loanedAt))
+  .limit(300);
+
+export function bookLoansQuery(bookId: string) {
+  return db
+    .select({ id: loans.id, copyId: loans.copyId, borrower: loans.borrower, loanedAt: loans.loanedAt, dueAt: loans.dueAt })
+    .from(loans)
+    .innerJoin(copies, eq(copies.id, loans.copyId))
+    .where(and(eq(copies.bookId, bookId), isNull(loans.deletedAt), isNull(loans.returnedAt)));
 }

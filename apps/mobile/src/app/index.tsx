@@ -41,7 +41,7 @@ export default function Home() {
   const confirmDeleteDemo = () =>
     Alert.alert('حذف البيانات التجريبية', 'ستُحذف جميع الكتب التجريبية، ولن تتأثر كتبكم الحقيقية.', [
       { text: 'إلغاء', style: 'cancel' },
-      { text: 'حذف', style: 'destructive', onPress: () => deleteDemoData() },
+      { text: 'حذف', style: 'destructive', onPress: () => user && deleteDemoData(user.id) },
     ]);
 
   const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير';
@@ -93,7 +93,10 @@ export default function Home() {
 
           <>
             {/* 3. Numbers: one card overlapping the header */}
-            <View style={[styles.stats, { backgroundColor: c.surface, borderColor: c.line }]}>
+            <PressLink
+              href="/stats"
+              accessibilityLabel="الإحصائيات"
+              style={({ pressed }) => [styles.stats, { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.85 : 1 }]}>
               {(
                 [
                   ['book-outline', s?.books, 'العناوين'],
@@ -118,7 +121,7 @@ export default function Home() {
                   </AppText>
                 </View>
               ))}
-            </View>
+            </PressLink>
 
             <View style={styles.body}>
               {/* 4. Rooms */}

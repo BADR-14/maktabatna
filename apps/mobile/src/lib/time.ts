@@ -13,3 +13,11 @@ export function timeAgo(ms: number, now = Date.now()): string {
   const mo = Math.round(d / 30);
   return mo === 1 ? 'منذ شهر' : mo === 2 ? 'منذ شهرين' : `منذ ${toArabicDigits(mo)} ${mo <= 10 ? 'أشهر' : 'شهراً'}`;
 }
+
+const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+/** "٥ مارس ٢٠٢٦" */
+export function formatDate(ms: number): string {
+  const d = new Date(ms);
+  return `${toArabicDigits(d.getDate())} ${MONTHS[d.getMonth()]} ${toArabicDigits(d.getFullYear())}`;
+}

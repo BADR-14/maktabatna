@@ -4,6 +4,7 @@ import { Pressable, TextInput, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { AuthShell } from '@/components/auth-shell';
+import { GoogleSignIn } from '@/components/google-button';
 import { Owl, useOwl } from '@/components/owl';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
@@ -75,6 +76,7 @@ export default function Login() {
       />
       <ErrorBox message={error} />
       <Button title="دخول" onPress={submit} loading={busy} />
+      <GoogleSignIn beforeSignIn={() => setServerUrl(server)} />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
         <AppText variant="muted">ليس لديك حساب؟</AppText>
         <Link href="/register" replace>

@@ -9,3 +9,4 @@ web-build/
 # Expo native folders are generated (Continuous Native Generation)
 apps/mobile/android/
 apps/mobile/ios/
+backups/

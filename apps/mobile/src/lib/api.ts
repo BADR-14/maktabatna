@@ -26,6 +26,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** A machine-readable reason the server may add, e.g. 'INVITE_REQUIRED'. */
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -59,7 +61,52 @@ export async function api<T>(path: string, init: { method?: 'GET' | 'POST'; body
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = Array.isArray(data?.message) ? data.message.join('\n') : data?.message;
-    throw new ApiError(typeof msg === 'string' && msg ? msg : 'حدث خطأ في الخادم، حاول مرة أخرى.', res.status);
+    throw new ApiError(typeof msg === 'string' && msg ? msg : 'حدث خطأ في الخادم، حاول مرة أخرى.', res.status, data?.code);
   }
   return data as T;
+}
+
+/** Where the session tokens live (expo-secure-store). */
+export const TOKEN_KEYS = { access: 'auth.access', refresh: 'auth.refresh', user: 'auth.user' } as const;
+
+/** The session expired or was revoked: the person must sign in again to sync. */
+export class AuthExpiredError extends ApiError {
+  constructor() {
+    super('انتهت الجلسة، سجّل الدخول من جديد للمزامنة.', 401);
+  }
+}
+
+let refreshing: Promise<string> | null = null;
+
+/** Trades the refresh token for new tokens (the server rotates it). One refresh at a time. */
+function refreshAccess(): Promise<string> {
+  refreshing ??= (async () => {
+    try {
+      const refreshToken = await SecureStore.getItemAsync(TOKEN_KEYS.refresh);
+      if (!refreshToken) throw new AuthExpiredError();
+      let res: { accessToken: string; refreshToken: string };
+      try {
+        res = await api('/auth/refresh', { body: { refreshToken } });
+      } catch (e) {
+        throw e instanceof ApiError && e.status === 401 ? new AuthExpiredError() : e;
+      }
+      await SecureStore.setItemAsync(TOKEN_KEYS.access, res.accessToken);
+      await SecureStore.setItemAsync(TOKEN_KEYS.refresh, res.refreshToken);
+      return res.accessToken;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+/** Like api(), signed in as the current user; renews the short-lived access token when needed. */
+export async function authedApi<T>(path: string, init: { method?: 'GET' | 'POST'; body?: unknown } = {}): Promise<T> {
+  const token = (await SecureStore.getItemAsync(TOKEN_KEYS.access)) ?? (await refreshAccess());
+  try {
+    return await api<T>(path, { ...init, token });
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status !== 401) throw e;
+    return api<T>(path, { ...init, token: await refreshAccess() });
+  }
 }

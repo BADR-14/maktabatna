@@ -7,18 +7,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 
 import { db } from '@/db/client';
 import { users } from '@/db/schema';
-import { api } from '@/lib/api';
+import { api, TOKEN_KEYS as KEYS } from '@/lib/api';
 
 export type SessionUser = { id: string; displayName: string; username: string };
 type AuthResponse = { accessToken: string; refreshToken: string; user: SessionUser };
-
-const KEYS = { access: 'auth.access', refresh: 'auth.refresh', user: 'auth.user' } as const;
 
 type SessionState = {
   status: 'loading' | 'signedOut' | 'signedIn';
   user: SessionUser | null;
   signIn: (username: string, password: string) => Promise<void>;
   register: (input: { displayName: string; username: string; password: string; inviteCode: string }) => Promise<void>;
+  /** Throws ApiError with code 'INVITE_REQUIRED' the first time, until an invite code is given. */
+  signInWithGoogle: (input: { idToken: string; inviteCode?: string; displayName?: string }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -69,6 +69,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [accept],
   );
 
+  const signInWithGoogle = useCallback<SessionState['signInWithGoogle']>(
+    async (input) => accept(await api<AuthResponse>('/auth/google', { body: input })),
+    [accept],
+  );
+
   const signOut = useCallback(async () => {
     const refresh = await SecureStore.getItemAsync(KEYS.refresh);
     // Revoke on the server if we can reach it; sign out locally either way.
@@ -78,7 +83,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setStatus('signedOut');
   }, []);
 
-  const value = useMemo(() => ({ status, user, signIn, register, signOut }), [status, user, signIn, register, signOut]);
+  const value = useMemo(
+    () => ({ status, user, signIn, register, signInWithGoogle, signOut }),
+    [status, user, signIn, register, signInWithGoogle, signOut],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

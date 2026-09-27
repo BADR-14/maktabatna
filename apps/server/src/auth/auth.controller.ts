@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 
-import { LoginDto, RefreshDto, RegisterDto } from './auth.dto.ts';
+import { GoogleDto, GoogleLinkDto, LoginDto, RefreshDto, RegisterDto } from './auth.dto.ts';
 import { AuthGuard, type AuthedRequest } from './auth.guard.ts';
 import { AuthService } from './auth.service.ts';
 
@@ -17,6 +17,24 @@ export class AuthController {
   @HttpCode(200)
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  @Get('config')
+  config() {
+    return this.auth.config();
+  }
+
+  @Post('google')
+  @HttpCode(200)
+  google(@Body() dto: GoogleDto) {
+    return this.auth.googleSignIn(dto);
+  }
+
+  @Post('google/link')
+  @HttpCode(200)
+  @UseGuards(AuthGuard)
+  linkGoogle(@Req() req: AuthedRequest, @Body() dto: GoogleLinkDto) {
+    return this.auth.linkGoogle(req.userId, dto.idToken);
   }
 
   @Post('refresh')

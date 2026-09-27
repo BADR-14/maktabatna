@@ -1,4 +1,4 @@
-import { IsString, Length, Matches } from 'class-validator';
+import { IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -29,4 +29,25 @@ export class LoginDto {
 export class RefreshDto {
   @IsString()
   refreshToken!: string;
+}
+
+export class GoogleDto {
+  /** The ID token Google gives the phone after the person picks their account. */
+  @IsString()
+  idToken!: string;
+
+  /** Needed only the first time, to create the account. */
+  @IsOptional()
+  @IsString()
+  inviteCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 40, { message: 'يجب أن يكون الاسم بين 2 و40 حرفاً' })
+  displayName?: string;
+}
+
+export class GoogleLinkDto {
+  @IsString()
+  idToken!: string;
 }

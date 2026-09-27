@@ -59,14 +59,56 @@ npm run mobile -- --clear
 
 > إذا ما قدر التطبيق يوصل للسيرفر، اكبس «عنوان السيرفر» بشاشة الدخول. لازم يكون `http://<عنوان اللابتوب>:3000`، وهو نفس العنوان يلي بيطلع جنب `exp://` بالـ PowerShell.
 
-## لابتوب السيرفر (لاحقاً)
+## التشغيل الحقيقي: لابتوب السيرفر + التطبيق المثبّت
 
-نفس خطوات السيرفر فوق، وبعد كل تحديث:
+### ١. لابتوب السيرفر (HP ZBook، شغّال طول الوقت)
+1. نفس خطوات «مرة وحدة بس» فوق (Git وNode وDocker، والـ clone، وملف `.env`).
+2. شغّل السيرفر:
+   ```powershell
+   docker compose up -d --build
+   ```
+   Docker Desktop لازم يشتغل مع Windows: **Settings ← General ← Start Docker Desktop when you sign in**.
+3. **بعد كل تحديث:**
+   ```powershell
+   git pull
+   docker compose up -d --build
+   ```
+   البيانات محفوظة بـ Docker volume اسمه `db-data`، وما بتضيع مع إعادة البناء.
+
+### ٢. Tailscale (مجاني): الموبايلات بتوصل للسيرفر من أي مكان
+1. نزّل **Tailscale** على لابتوب السيرفر وعلى كل موبايل، وسجّل دخول **بنفس الحساب** عليهم كلهم.
+2. من <https://login.tailscale.com/admin/machines>، غيّر اسم لابتوب السيرفر لـ **`library-server`** (من ⋯ ← Edit machine name).
+3. بهيك التطبيق بيلاقي السيرفر لحاله على `http://library-server:3000`، وما في داعي تكتب عنوان.
+   > إذا ما زبط، بشاشة الدخول اكبس «عنوان الخادم»، واكتب `http://<عنوان Tailscale للابتوب>:3000` (العنوان يلي بيبلّش بـ `100.`).
+
+### ٣. تثبيت التطبيق على الموبايلات (APK)
+1. التطبيق بينبنى لحاله على GitHub. آخر نسخة بتلاقيها هون: <https://github.com/BADR-14/maktabatna/releases>
+2. من الموبايل افتح الرابط، ونزّل ملف `maktabatna-….apk`، وافتحه.
+3. أول مرة Android بيطلب إذن **«تثبيت تطبيقات من مصادر غير معروفة»** للمتصفح: اسمح.
+4. **نسخة جديدة:** من GitHub ← **Actions ← APK ← Run workflow**. بعد حوالي ٢٠ دقيقة بتطلع بـ Releases، وبتنزّلها وبتثبّتها **فوق القديمة**، وما بتضيع البيانات.
+
+### ٤. الدخول بحساب Google
+الخطوات بـ [`docs/GOOGLE_SIGN_IN.md`](docs/GOOGLE_SIGN_IN.md). بتنعمل مرة وحدة، ومجانية.
+
+### ٥. المزامنة
+- كل موبايل عنده نسخة كاملة من الكتب، وبيشتغل بدون إنترنت.
+- التعديلات بتنبعت للسيرفر لحالها بعد كم ثانية، وكل كم دقيقة، ولما تفتح التطبيق.
+- حالتها بتبيّن بـ **الملف الشخصي ← المزامنة مع الخادم**، ومن هونيك في زر «مزامنة الآن».
+
+### ٦. النسخ الاحتياطي على فلاشة
+على لابتوب السيرفر، بـ PowerShell جوا مجلد `maktabatna`:
 ```powershell
-git pull
-docker compose up -d --build
+.\scripts\backup.ps1 -To E:\
 ```
-البيانات بتنحفظ بـ Docker volume اسمه `db-data`، وما بتضيع لما تعيد بناء السيرفر.
+(`E:\` هو حرف الفلاشة.) النسخة بتنحفظ كمان بمجلد `backups`، وبيضل فيه آخر ٣٠ نسخة.
+
+- **نسخة تلقائية كل يوم:** افتح **Task Scheduler ← Create Basic Task**، وخليها يومية. بخانة **Program** اكتب `powershell`، وبخانة **Arguments**:
+  `-ExecutionPolicy Bypass -File C:\Users\BADR\maktabatna\scripts\backup.ps1`
+- **الاسترجاع** (بيستبدل بيانات السيرفر):
+  ```powershell
+  .\scripts\restore.ps1 -File backups\maktabatna-2026-09-27_2100.dump
+  ```
+- إذا PowerShell رفض يشغّل السكربت، شغّل مرة وحدة: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
 
 ---
 

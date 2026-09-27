@@ -7,17 +7,18 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '@/auth/session';
+import { Chip } from '@/components/book-browser';
 import { BookCover } from '@/components/book-cover';
 import { HeaderSearch } from '@/components/header-search';
 import { PressLink } from '@/components/press-link';
 import { ShelfPicker, shelfLabel } from '@/components/shelf-picker';
 import { AppText } from '@/components/text';
-import { Button } from '@/components/ui';
+import { Button, Field } from '@/components/ui';
 import { DEMO_USER_ID } from '@/db/demo';
-import { addCopy, moveVolumes, trashBook } from '@/db/mutations';
-import { bookLocationsQuery, bookPeopleQuery, bookQuery } from '@/db/queries';
+import { addCopy, lendCopy, moveVolumes, returnLoan, trashBook } from '@/db/mutations';
+import { bookLoansQuery, bookLocationsQuery, bookPeopleQuery, bookQuery } from '@/db/queries';
 import { count } from '@/lib/plural';
-import { timeAgo } from '@/lib/time';
+import { formatDate, timeAgo } from '@/lib/time';
 import { fonts, radius, space, useColors } from '@/theme';
 
 /** What the shelf picker sheet is for: moving one group of volumes, or placing a new copy. */
@@ -32,12 +33,16 @@ export default function BookScreen() {
   const { data } = useLiveQuery(bookQuery(id), [id]);
   const { data: people } = useLiveQuery(bookPeopleQuery(id), [id]);
   const { data: places } = useLiveQuery(bookLocationsQuery(id), [id]);
+  const { data: loans } = useLiveQuery(bookLoansQuery(id), [id]);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [lending, setLending] = useState(false);
   const row = data?.[0];
   if (!row) return <Stack.Screen options={{ title: '' }} />;
   const { book } = row;
   const copies = new Set((places ?? []).map((p) => p.copyId)).size;
   const trashed = book.deletedAt != null;
+  const copyIds = [...new Set((places ?? []).map((p) => p.copyId))];
+  const freeCopies = copyIds.filter((cid) => !loans.some((l) => l.copyId === cid));
 
   const facts: [string, string | null][] = [
     ...(people ?? []).map((p): [string, string] => [
@@ -168,6 +173,36 @@ export default function BookScreen() {
                 </View>
               );
             })}
+            <AppText style={styles.section}>الإعارة</AppText>
+            {loans.map((l) => (
+              <View key={l.id} style={[styles.loan, { backgroundColor: c.tint }]}>
+                <Ionicons name="person-outline" size={20} color={c.tintText} />
+                <View style={{ flex: 1 }}>
+                  <AppText variant="label" style={{ color: c.tintText }}>
+                    مُعار إلى {l.borrower}
+                  </AppText>
+                  <AppText variant="muted">
+                    منذ {formatDate(l.loanedAt)}
+                    {l.dueAt ? `، يُعاد في ${formatDate(l.dueAt)}` : ''}
+                  </AppText>
+                </View>
+                <Pressable
+                  onPress={() => user && returnLoan(l.id, user.id)}
+                  style={({ pressed }) => [styles.smallBtn, { borderColor: c.tintText, opacity: pressed ? 0.7 : 1 }]}>
+                  <AppText style={{ color: c.tintText, fontSize: 13, fontFamily: fonts.semibold }}>أُعيد</AppText>
+                </Pressable>
+              </View>
+            ))}
+            {freeCopies.length ? (
+              <Pressable
+                onPress={() => setLending(true)}
+                style={({ pressed }) => [styles.addCopy, { borderColor: c.accent, opacity: pressed ? 0.7 : 1 }]}>
+                <Ionicons name="person-add-outline" size={18} color={c.accentText} />
+                <AppText style={{ color: c.accentText, fontFamily: fonts.semibold }}>إعارة هذا الكتاب</AppText>
+              </Pressable>
+            ) : null}
+
+            <AppText style={styles.section}>النسخ والسجل</AppText>
             <Pressable
               onPress={() => setSheet({ kind: 'copy' })}
               style={({ pressed }) => [styles.addCopy, { borderColor: c.accent, opacity: pressed ? 0.7 : 1 }]}>
@@ -176,8 +211,23 @@ export default function BookScreen() {
             </Pressable>
           </>
         )}
+        <PressLink
+          href={{ pathname: '/book/history', params: { id: book.id } }}
+          style={({ pressed }) => [styles.addCopy, { borderColor: c.line, borderStyle: 'solid', opacity: pressed ? 0.7 : 1 }]}>
+          <Ionicons name="time-outline" size={18} color={c.text} />
+          <AppText style={{ fontFamily: fonts.semibold }}>سجل التعديلات</AppText>
+        </PressLink>
       </ScrollView>
 
+      <LendSheet
+        visible={lending}
+        copies={freeCopies}
+        onClose={() => setLending(false)}
+        onLend={(copyId, borrower, dueAt) => {
+          if (user) lendCopy(copyId, borrower, dueAt, null, user.id);
+          setLending(false);
+        }}
+      />
       <ShelfSheet
         title={sheet?.kind === 'copy' ? 'مكان النسخة الجديدة' : 'نقل إلى رف آخر'}
         visible={!!sheet}
@@ -186,6 +236,74 @@ export default function BookScreen() {
         initial={sheet?.kind === 'move' ? sheet.fromShelfId : null}
       />
     </>
+  );
+}
+
+const DUE: [string, number | null][] = [
+  ['بدون موعد', null],
+  ['أسبوع', 7],
+  ['أسبوعان', 14],
+  ['شهر', 30],
+  ['ثلاثة أشهر', 90],
+];
+
+function LendSheet({
+  visible,
+  copies,
+  onClose,
+  onLend,
+}: {
+  visible: boolean;
+  copies: string[];
+  onClose: () => void;
+  onLend: (copyId: string, borrower: string, dueAt: number | null) => void;
+}) {
+  const c = useColors();
+  const insets = useSafeAreaInsets();
+  const [borrower, setBorrower] = useState('');
+  const [days, setDays] = useState<number | null>(null);
+  const [copy, setCopy] = useState(0);
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      onShow={() => {
+        setBorrower('');
+        setDays(null);
+        setCopy(0);
+      }}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="إغلاق" />
+      <View style={[styles.sheet, { backgroundColor: c.surface, paddingBottom: insets.bottom + space.lg }]}>
+        <AppText variant="title">إعارة الكتاب</AppText>
+        <Field label="لمن؟" value={borrower} onChangeText={setBorrower} placeholder="اسم المستعير" />
+        <View style={{ gap: 6 }}>
+          <AppText variant="muted">موعد الإعادة</AppText>
+          <View style={styles.wrap}>
+            {DUE.map(([label, d]) => (
+              <Chip key={label} label={label} on={days === d} onPress={() => setDays(d)} />
+            ))}
+          </View>
+        </View>
+        {copies.length > 1 ? (
+          <View style={{ gap: 6 }}>
+            <AppText variant="muted">أي نسخة؟</AppText>
+            <View style={styles.wrap}>
+              {copies.map((cid, i) => (
+                <Chip key={cid} label={`النسخة ${toArabicDigits(i + 1)}`} on={copy === i} onPress={() => setCopy(i)} />
+              ))}
+            </View>
+          </View>
+        ) : null}
+        <Button
+          title="إعارة"
+          disabled={!borrower.trim()}
+          onPress={() => onLend(copies[Math.min(copy, copies.length - 1)], borrower, days ? Date.now() + days * 86_400_000 : null)}
+        />
+      </View>
+    </Modal>
   );
 }
 
@@ -244,6 +362,9 @@ const styles = StyleSheet.create({
   placeActions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
   placeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: space.md },
   placeBtnText: { fontSize: 13, fontFamily: fonts.semibold },
+  loan: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.md, borderRadius: radius.md },
+  smallBtn: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: 4 },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
   addCopy: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,7 +2,8 @@
  * «خمري ودهبي» palette (option 3), from docs/PROJECT_BRIEF.md §10.
  * Plain StyleSheet + tokens: zero runtime styling cost, which matters on the Redmi 13C.
  */
-import { useColorScheme } from 'react-native';
+import Storage from 'expo-sqlite/kv-store';
+import { Appearance, useColorScheme } from 'react-native';
 
 export const palettes = {
   light: {
@@ -34,6 +35,27 @@ export const palettes = {
 } as const;
 
 export type Palette = { [K in keyof typeof palettes.light]: string };
+
+export type ThemePref = 'auto' | 'light' | 'dark';
+const THEME_KEY = 'theme';
+
+/** The person's choice: follow the phone (auto), or always light / always dark. */
+export function getThemePref(): ThemePref {
+  const v = Storage.getItemSync(THEME_KEY);
+  return v === 'light' || v === 'dark' ? v : 'auto';
+}
+
+/** Applies the choice app-wide (screens and system dialogs) and remembers it. */
+export function setThemePref(pref: ThemePref) {
+  Storage.setItemSync(THEME_KEY, pref);
+  Appearance.setColorScheme(pref === 'auto' ? 'unspecified' : pref);
+}
+
+/** Call once at startup. */
+export function applyStoredTheme() {
+  const pref = getThemePref();
+  if (pref !== 'auto') Appearance.setColorScheme(pref);
+}
 
 export function useColors(): Palette {
   return useColorScheme() === 'dark' ? palettes.dark : palettes.light;

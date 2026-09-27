@@ -10,9 +10,9 @@ import { randomUUID } from 'expo-crypto';
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { db } from './client';
-import { bookPersons, books, changeLog, copies, persons, users, volumes } from './schema';
+import { bookPersons, books, changeLog, copies, loans, persons, users, volumes } from './schema';
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type PersonInput = { name: string; role: PersonRole; deathYearHijri?: number | null };
 export type BookInput = {
@@ -28,7 +28,8 @@ export type Placement = 'standing' | 'lying' | 'on_top';
 
 const BOOK_FIELDS = ['title', 'categoryId', 'publisher', 'edition', 'totalVolumes', 'notes'] as const;
 
-function created(userId: string, now: number, fields: string[]) {
+/** Internal helpers, also used by catalog-io.ts. */
+export function created(userId: string, now: number, fields: string[]) {
   return {
     id: randomUUID(),
     createdAt: now,
@@ -45,7 +46,7 @@ function bumpClock(json: string, fields: string[], now: number) {
   return JSON.stringify(clock);
 }
 
-function log(tx: Tx, table: string, rowId: string, field: string, oldValue: unknown, newValue: unknown, userId: string, now: number) {
+export function log(tx: Tx, table: string, rowId: string, field: string, oldValue: unknown, newValue: unknown, userId: string, now: number) {
   const s = (v: unknown) => (v === null || v === undefined ? null : String(v));
   tx.insert(changeLog)
     .values({ id: randomUUID(), tableName: table, rowId, field, oldValue: s(oldValue), newValue: s(newValue), changedBy: userId, changedAt: now })
@@ -53,7 +54,7 @@ function log(tx: Tx, table: string, rowId: string, field: string, oldValue: unkn
 }
 
 /** Finds a person by normalized name, or adds them. */
-function personId(tx: Tx, p: PersonInput, userId: string, now: number): string {
+export function personId(tx: Tx, p: PersonInput, userId: string, now: number): string {
   const nameNorm = normalizeArabic(p.name);
   const found = tx.select({ id: persons.id }).from(persons).where(and(eq(persons.nameNorm, nameNorm), isNull(persons.deletedAt))).get();
   if (found) return found.id;
@@ -62,7 +63,7 @@ function personId(tx: Tx, p: PersonInput, userId: string, now: number): string {
   return row.id;
 }
 
-function reindex(tx: Tx, bookId: string) {
+export function reindex(tx: Tx, bookId: string) {
   const book = tx.select({ title: books.title, publisher: books.publisher }).from(books).where(eq(books.id, bookId)).get();
   const names = tx
     .select({ name: persons.name })
@@ -83,22 +84,31 @@ export function keyAfter(last: string | null | undefined): string {
   return `${last}1`;
 }
 
-function lastPosition(tx: Tx, shelfId: string) {
+function lastPosition(tx: Tx, shelfId: string, row: 'front' | 'back' = 'front') {
   return tx
     .select({ p: volumes.position })
     .from(volumes)
-    .where(and(eq(volumes.shelfId, shelfId), eq(volumes.row, 'front'), isNull(volumes.deletedAt)))
+    .where(and(eq(volumes.shelfId, shelfId), eq(volumes.row, row), isNull(volumes.deletedAt)))
     .orderBy(desc(volumes.position))
     .limit(1)
     .get()?.p;
 }
 
-function placeVolumes(tx: Tx, copyId: string, shelfId: string, numbers: (number | null)[], placement: Placement, userId: string, now: number) {
-  let pos = lastPosition(tx, shelfId);
+export function placeVolumes(
+  tx: Tx,
+  copyId: string,
+  shelfId: string,
+  numbers: (number | null)[],
+  placement: Placement,
+  userId: string,
+  now: number,
+  row: 'front' | 'back' = 'front',
+) {
+  let pos = lastPosition(tx, shelfId, row);
   for (const n of numbers) {
     pos = keyAfter(pos);
     tx.insert(volumes)
-      .values({ ...created(userId, now, ['shelfId', 'volumeNumber', 'placement', 'position']), copyId, shelfId, volumeNumber: n, placement, position: pos })
+      .values({ ...created(userId, now, ['shelfId', 'volumeNumber', 'placement', 'position', 'row']), copyId, shelfId, volumeNumber: n, placement, row, position: pos })
       .run();
   }
 }
@@ -295,3 +305,62 @@ export function setAvatar(userId: string, fileName: string | null) {
     .where(eq(users.id, userId))
     .run();
 }
+
+/** Lends one copy. `dueAt` is optional (epoch ms). */
+export function lendCopy(copyId: string, borrower: string, dueAt: number | null, notes: string | null, userId: string) {
+  const now = Date.now();
+  db.transaction((tx) => {
+    const row = {
+      ...created(userId, now, ['copyId', 'borrower', 'loanedAt', 'dueAt', 'notes']),
+      copyId,
+      borrower: borrower.trim(),
+      loanedAt: now,
+      dueAt,
+      notes: notes?.trim() || null,
+    };
+    tx.insert(loans).values(row).run();
+    log(tx, 'loans', row.id, '*', null, row.borrower, userId, now);
+  });
+}
+
+/** Marks a loan as returned. */
+export function returnLoan(loanId: string, userId: string) {
+  const now = Date.now();
+  db.transaction((tx) => {
+    tx.update(loans)
+      .set({ returnedAt: now, updatedAt: now, updatedBy: userId, fieldClock: sql`json_set(field_clock, '$.returnedAt', cast(${now} as integer))` })
+      .where(eq(loans.id, loanId))
+      .run();
+    log(tx, 'loans', loanId, 'returnedAt', null, now, userId, now);
+  });
+}
+
+type BookField = (typeof BOOK_FIELDS)[number];
+
+/** Puts back an old value of one field from the history (the change itself is logged too). */
+export function restoreBookField(bookId: string, field: BookField, value: string | null, userId: string) {
+  const book = db.select().from(books).where(eq(books.id, bookId)).get();
+  if (!book) return;
+  const people = db
+    .select({ name: persons.name, role: bookPersons.role, deathYearHijri: persons.deathYearHijri })
+    .from(bookPersons)
+    .innerJoin(persons, eq(persons.id, bookPersons.personId))
+    .where(and(eq(bookPersons.bookId, bookId), isNull(bookPersons.deletedAt)))
+    .orderBy(asc(bookPersons.sortOrder))
+    .all();
+  const input: BookInput = {
+    title: book.title,
+    categoryId: book.categoryId,
+    publisher: book.publisher,
+    edition: book.edition,
+    totalVolumes: book.totalVolumes,
+    notes: book.notes,
+    people,
+  };
+  if (field === 'totalVolumes') input.totalVolumes = Number(value) || 1;
+  else if (field === 'title') input.title = value ?? book.title;
+  else input[field] = value;
+  updateBook(bookId, input, userId);
+}
+
+export const RESTORABLE_FIELDS: readonly string[] = BOOK_FIELDS;

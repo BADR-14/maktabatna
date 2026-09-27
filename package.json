@@ -8,7 +8,7 @@
   "scripts": {
     "mobile": "npm run start -w @maktabatna/mobile",
     "server": "npm run start:dev -w @maktabatna/server",
-    "test": "npm run test --workspaces --if-present",
+    "test": "node scripts/copy-sync-spec.mjs --check && npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   }
 }
