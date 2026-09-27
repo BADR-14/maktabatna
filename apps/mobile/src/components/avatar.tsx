@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useLiveQuery } from '@/db/live';
 import { File, Paths } from 'expo-file-system';
 import { Image, StyleSheet, View } from 'react-native';
 

@@ -1,4 +1,4 @@
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useLiveQuery } from '@/db/live';
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { BookBrowser } from '@/components/book-browser';

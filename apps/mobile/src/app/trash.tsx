@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useLiveQuery } from '@/db/live';
 import { Stack } from 'expo-router';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 

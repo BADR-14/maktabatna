@@ -41,3 +41,6 @@ example
 # generated native folders
 /ios
 /android
+
+# The family release key is committed on purpose (see plugins/with-release-signing.js).
+!credentials/maktabatna-release.jks

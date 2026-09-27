@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PERSON_ROLES, toArabicDigits } from '@maktabatna/shared';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useLiveQuery } from '@/db/live';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';

@@ -18,7 +18,11 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.badr.maktabatna"
+      "package": "com.badr.maktabatna",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "output": "static",
@@ -43,7 +47,24 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يحتاج التطبيق إلى الوصول إلى الصور لاختيار صورة الملف الشخصي.",
+          "cameraPermission": "يحتاج التطبيق إلى الكاميرا لالتقاط صورة الملف الشخصي.",
+          "microphonePermission": false
+        }
+      ],
+      "./plugins/with-release-signing.js"
     ],
     "experiments": {
       "typedRoutes": true,

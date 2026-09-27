@@ -1,6 +1,6 @@
 /** "Where is it?": pick a room, then a bookcase, then a shelf. Used when adding and moving books. */
 import { toArabicDigits } from '@maktabatna/shared';
-import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
+import { useLiveQuery } from '@/db/live';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
