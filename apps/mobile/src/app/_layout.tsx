@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import Storage from 'expo-sqlite/kv-store';
 import { StatusBar } from 'expo-status-bar';
@@ -31,6 +31,22 @@ if (!I18nManager.isRTL) {
     Storage.setItemSync('rtl-reloaded', '1');
     DevSettings.reload();
   }
+}
+
+/** Instead of the app closing, a screen error shows this, with the details and a retry. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const colors = useColors();
+  return (
+    <View style={[styles.center, { backgroundColor: colors.background, gap: 16 }]}>
+      <Text style={{ color: colors.text, fontSize: 18, textAlign: 'center' }}>حدث خطأ غير متوقع</Text>
+      <Text selectable style={{ color: colors.textMuted, textAlign: 'center' }}>
+        {error.message}
+      </Text>
+      <Text onPress={retry} style={{ color: colors.accentText, fontSize: 16, padding: 12 }}>
+        إعادة المحاولة
+      </Text>
+    </View>
+  );
 }
 
 export default function RootLayout() {

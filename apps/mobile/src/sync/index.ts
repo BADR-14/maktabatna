@@ -21,11 +21,18 @@ export type SyncState = {
 const db = sqlite as unknown as SqlDb;
 const LAST = 'sync_last';
 
-let state: SyncState = {
-  status: 'idle',
-  lastSyncedAt: Number(db.getFirstSync<{ value: string }>('SELECT value FROM local_meta WHERE key = ?', [LAST])?.value) || null,
-  pending: 0,
-};
+// Nothing here may touch the database at import time: on a fresh install the tables only
+// exist once the migrations have run (after the first render), and a failing query while the
+// app's modules load crashes a release build on the spot.
+let state: SyncState = { status: 'idle', lastSyncedAt: null, pending: 0 };
+
+function readLastSynced(): number | null {
+  try {
+    return Number(db.getFirstSync<{ value: string }>('SELECT value FROM local_meta WHERE key = ?', [LAST])?.value) || null;
+  } catch {
+    return null;
+  }
+}
 const listeners = new Set<() => void>();
 function set(patch: Partial<SyncState>) {
   state = { ...state, ...patch };
@@ -72,7 +79,7 @@ const AFTER_EDIT_MS = 4000;
 /** Starts automatic sync for a signed-in person; returns a function that stops it. */
 export function startAutoSync(): () => void {
   let editTimer: ReturnType<typeof setTimeout> | null = null;
-  set({ pending: pendingCount(db) });
+  set({ pending: pendingCount(db), lastSyncedAt: readLastSynced() });
   void syncNow();
   const interval = setInterval(() => AppState.currentState === 'active' && void syncNow(), EVERY_MS);
   const app = AppState.addEventListener('change', (s) => s === 'active' && void syncNow());
