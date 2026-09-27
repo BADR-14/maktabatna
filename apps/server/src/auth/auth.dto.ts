@@ -5,9 +5,9 @@ export class RegisterDto {
   @Length(2, 40, { message: 'الاسم لازم يكون بين 2 و40 حرف' })
   displayName!: string;
 
-  /** Latin letters, digits, dot, underscore; stored lowercase. */
+  /** Latin letters, digits, dot, underscore, hyphen; stored lowercase. */
   @IsString()
-  @Matches(/^[a-zA-Z0-9._]{3,30}$/, { message: 'اسم المستخدم لازم يكون 3-30 حرف إنجليزي أو رقم' })
+  @Matches(/^[a-zA-Z0-9._-]{3,30}$/, { message: 'اسم المستخدم لازم يكون 3-30 حرف إنجليزي أو رقم (ومسموح - و_ و.)' })
   username!: string;
 
   @IsString()

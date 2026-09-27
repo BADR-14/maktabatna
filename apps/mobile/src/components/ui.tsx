@@ -40,22 +40,32 @@ export function Button({
   );
 }
 
-export const Field = forwardRef<TextInput, TextInputProps & { label: string; hint?: string }>(function Field(
-  { label, hint, style, ...props },
-  ref,
-) {
+export const Field = forwardRef<
+  TextInput,
+  TextInputProps & { label: string; hint?: string; /** Password field with a show/hide button. */ reveal?: { shown: boolean; onToggle: () => void } }
+>(function Field({ label, hint, reveal, style, ...props }, ref) {
   const c = useColors();
   return (
     <View style={styles.field}>
       <AppText variant="label" style={{ fontSize: 14 }}>
         {label}
       </AppText>
-      <TextInput
-        ref={ref}
-        placeholderTextColor={c.textMuted}
-        {...props}
-        style={[styles.input, { color: c.text, backgroundColor: c.background, borderColor: c.line }, style]}
-      />
+      <View style={[styles.inputRow, { backgroundColor: c.background, borderColor: c.line }]}>
+        <TextInput
+          ref={ref}
+          placeholderTextColor={c.textMuted}
+          {...props}
+          secureTextEntry={reveal ? !reveal.shown : props.secureTextEntry}
+          style={[styles.input, { color: c.text }, style]}
+        />
+        {reveal ? (
+          <Pressable onPress={reveal.onToggle} hitSlop={10} accessibilityRole="button" style={styles.reveal}>
+            <AppText variant="label" style={{ color: c.accentText, fontSize: 13 }}>
+              {reveal.shown ? 'إخفاء' : 'إظهار'}
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
       {hint ? <AppText variant="muted">{hint}</AppText> : null}
     </View>
   );
@@ -74,14 +84,8 @@ export function ErrorBox({ message }: { message: string | null }) {
 const styles = StyleSheet.create({
   button: { minHeight: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.lg },
   field: { gap: 6 },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    textAlign: 'right',
-  },
+  inputRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: radius.md, minHeight: 48 },
+  input: { flex: 1, minHeight: 46, paddingHorizontal: space.md, fontFamily: fonts.regular, fontSize: 16, textAlign: 'right' },
+  reveal: { paddingHorizontal: space.md, alignSelf: 'stretch', justifyContent: 'center' },
   error: { borderRadius: radius.sm, padding: space.md },
 });

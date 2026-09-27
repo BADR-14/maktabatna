@@ -4,6 +4,7 @@ import { Pressable, TextInput, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { AuthShell } from '@/components/auth-shell';
+import { Owl, useOwl } from '@/components/owl';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
 import { getServerUrl, setServerUrl } from '@/lib/api';
@@ -19,6 +20,8 @@ export default function Login() {
   const [showServer, setShowServer] = useState(false);
   const [server, setServer] = useState('');
   const passwordRef = useRef<TextInput>(null);
+  const owl = useOwl();
+  const userOwl = owl.text(username);
 
   useEffect(() => {
     getServerUrl().then(setServer);
@@ -42,12 +45,17 @@ export default function Login() {
   }
 
   return (
-    <AuthShell subtitle="أرشيف مكتبة البيت">
+    <AuthShell subtitle="أرشيف مكتبة البيت" art={<Owl mood={owl.mood} look={owl.look} />}>
       <AppText variant="title">تسجيل الدخول</AppText>
       <Field
         label="اسم المستخدم"
         value={username}
-        onChangeText={setUsername}
+        onChangeText={(v) => {
+          setUsername(v);
+          userOwl.onTyped(v);
+        }}
+        onFocus={userOwl.onFocus}
+        onBlur={userOwl.onBlur}
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="next"
@@ -58,7 +66,9 @@ export default function Login() {
         label="كلمة السر"
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
+        onFocus={owl.password.onFocus}
+        onBlur={owl.password.onBlur}
+        reveal={owl.password.reveal}
         returnKeyType="go"
         onSubmitEditing={submit}
       />

@@ -48,7 +48,10 @@ export async function api<T>(path: string, init: { method?: 'GET' | 'POST'; body
       signal: controller.signal,
     });
   } catch {
-    throw new ApiError(`ما قدرت وصل للسيرفر (${base}). تأكد إنو شغّال وإنك على نفس الشبكة.`, 0);
+    throw new ApiError(
+      `ما قدرت وصل للسيرفر (${base}).\nتأكد إنو السيرفر شغّال عاللابتوب، وجرّب تفتح ${base}/health من متصفح الموبايل.`,
+      0,
+    );
   } finally {
     clearTimeout(timer);
   }

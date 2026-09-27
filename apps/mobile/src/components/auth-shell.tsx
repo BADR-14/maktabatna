@@ -6,14 +6,14 @@ import { AppText } from '@/components/text';
 import { fonts, radius, space, useColors } from '@/theme';
 
 /** Burgundy header with the app name, and a card holding the form. Shared by login and register. */
-export function AuthShell({ subtitle, children }: { subtitle: string; children: ReactNode }) {
+export function AuthShell({ subtitle, art, children }: { subtitle: string; /** Shown above the title, e.g. the owl. */ art?: ReactNode; children: ReactNode }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        <View style={[styles.hero, { backgroundColor: c.primary, paddingTop: insets.top + 48 }]}>
-          <Spines />
+        <View style={[styles.hero, { backgroundColor: c.primary, paddingTop: insets.top + (art ? 20 : 48) }]}>
+          {art ?? <Spines />}
           <AppText style={[styles.title, { color: c.onPrimary }]}>مكتبتنا</AppText>
           <AppText style={{ color: c.onPrimary, opacity: 0.85 }}>{subtitle}</AppText>
         </View>
