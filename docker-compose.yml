@@ -26,6 +26,8 @@ services:
     environment:
       DATABASE_URL: postgresql://maktabatna:${POSTGRES_PASSWORD:-maktabatna}@db:5432/maktabatna
       PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (see .env.example)}
+      INVITE_CODE: ${INVITE_CODE:?Set INVITE_CODE in .env (see .env.example)}
     ports:
       - "3000:3000"
 

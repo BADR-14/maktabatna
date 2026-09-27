@@ -13,20 +13,35 @@ datasource db {
 }
 
 model User {
-  id           String  @id @db.Uuid
-  createdAt    BigInt  @map("created_at")
-  updatedAt    BigInt  @map("updated_at")
-  deletedAt    BigInt? @map("deleted_at")
-  createdBy    String? @map("created_by") @db.Uuid
-  updatedBy    String? @map("updated_by") @db.Uuid
-  fieldClock   Json    @default("{}") @map("field_clock")
-  displayName  String  @map("display_name")
-  username     String  @unique
+  id            String         @id @db.Uuid
+  createdAt     BigInt         @map("created_at")
+  updatedAt     BigInt         @map("updated_at")
+  deletedAt     BigInt?        @map("deleted_at")
+  createdBy     String?        @map("created_by") @db.Uuid
+  updatedBy     String?        @map("updated_by") @db.Uuid
+  fieldClock    Json           @default("{}") @map("field_clock")
+  displayName   String         @map("display_name")
+  username      String         @unique
   /// Server only: never synced to phones.
-  passwordHash String  @map("password_hash")
+  passwordHash  String         @map("password_hash")
+  refreshTokens RefreshToken[]
 
   @@index([updatedAt])
   @@map("users")
+}
+
+/// Server only. One row per signed-in device; deleting it signs that device out.
+model RefreshToken {
+  id        String @id @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the token; the token itself is never stored.
+  tokenHash String @unique @map("token_hash")
+  createdAt BigInt @map("created_at")
+  expiresAt BigInt @map("expires_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
 }
 
 model Room {
@@ -106,20 +121,20 @@ enum ShelfKind {
 }
 
 model Shelf {
-  id          String    @id @db.Uuid
-  createdAt   BigInt    @map("created_at")
-  updatedAt   BigInt    @map("updated_at")
-  deletedAt   BigInt?   @map("deleted_at")
-  createdBy   String?   @map("created_by") @db.Uuid
-  updatedBy   String?   @map("updated_by") @db.Uuid
-  fieldClock  Json      @default("{}") @map("field_clock")
-  sectionId   String    @map("section_id") @db.Uuid
-  section     Section   @relation(fields: [sectionId], references: [id])
-  number      Int
-  kind        ShelfKind @default(shelf)
-  hasBackRow  Boolean   @default(false) @map("has_back_row")
-  heightCm    Float?    @map("height_cm")
-  volumes     Volume[]
+  id         String    @id @db.Uuid
+  createdAt  BigInt    @map("created_at")
+  updatedAt  BigInt    @map("updated_at")
+  deletedAt  BigInt?   @map("deleted_at")
+  createdBy  String?   @map("created_by") @db.Uuid
+  updatedBy  String?   @map("updated_by") @db.Uuid
+  fieldClock Json      @default("{}") @map("field_clock")
+  sectionId  String    @map("section_id") @db.Uuid
+  section    Section   @relation(fields: [sectionId], references: [id])
+  number     Int
+  kind       ShelfKind @default(shelf)
+  hasBackRow Boolean   @default(false) @map("has_back_row")
+  heightCm   Float?    @map("height_cm")
+  volumes    Volume[]
 
   @@index([sectionId])
   @@index([updatedAt])
