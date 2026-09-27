@@ -1,11 +1,13 @@
-import { formatArabicNumber, toArabicDigits } from '@maktabatna/shared';
+import { toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { BookRow } from '@/components/book-row';
+import { AddBookFab } from '@/components/fab';
 import { AppText } from '@/components/text';
+import { count } from '@/lib/plural';
 import { shelfQuery, shelfVolumesQuery } from '@/db/queries';
 import { radius, space, useColors } from '@/theme';
 
@@ -18,7 +20,7 @@ export default function ShelfScreen() {
   const { data } = useLiveQuery(shelfQuery(id), [id]);
   const { data: vols } = useLiveQuery(shelfVolumesQuery(id), [id]);
   const s = data?.[0];
-  const title = s ? (s.kind === 'top' ? 'فوق المكتبة' : `الرف ${toArabicDigits(s.number)}`) : '';
+  const title = s ? (s.kind === 'top' ? 'أعلى المكتبة' : `الرف ${toArabicDigits(s.number)}`) : '';
 
   const runs = useMemo(() => {
     const out: Run[] = [];
@@ -50,8 +52,8 @@ export default function ShelfScreen() {
   const describe = (r: Run) => {
     const parts = [r.author];
     if (r.total > 1) parts.push(r.from === r.to ? `المجلد ${toArabicDigits(r.from ?? 0)}` : `المجلدات ${toArabicDigits(r.from ?? 0)}–${toArabicDigits(r.to ?? 0)} من ${toArabicDigits(r.total)}`);
-    if (r.lying) parts.push('ممدود');
-    return parts.filter(Boolean).join(' · ');
+    if (r.lying) parts.push('موضوع أفقياً');
+    return parts.filter(Boolean).join('، ');
   };
 
   return (
@@ -65,26 +67,27 @@ export default function ShelfScreen() {
           s ? (
             <View style={{ gap: 2, marginBottom: space.sm }}>
               <AppText variant="label">
-                {s.roomName} · مكتبة {toArabicDigits(s.bookcaseNumber)} · {s.bookcaseName}
+                {s.roomName}، مكتبة {toArabicDigits(s.bookcaseNumber)}، {s.bookcaseName}
               </AppText>
-              <AppText variant="muted">{formatArabicNumber(vols?.length ?? 0)} مجلد · مرتبين من اليمين</AppText>
+              <AppText variant="muted">{vols?.length ? `${count(vols.length, 'volume')}، مرتبة من اليمين` : 'الرف فارغ'}</AppText>
             </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={[styles.empty, { backgroundColor: c.surface, borderColor: c.line }]}>
-            <AppText variant="label">لسا ما في كتب على هالرف</AppText>
+            <AppText variant="label">لا توجد كتب على هذا الرف بعد</AppText>
           </View>
         }
         renderItem={({ item }) => (
           <BookRow bookId={item.bookId} title={item.title} subtitle={describe(item)} href={{ pathname: '/book/[id]', params: { id: item.bookId } }} />
         )}
       />
+      <AddBookFab href={{ pathname: '/book/edit', params: { shelfId: id } }} label="إضافة إلى هذا الرف" />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { padding: space.lg, gap: space.sm },
+  list: { padding: space.lg, gap: space.sm, paddingBottom: 100 },
   empty: { borderWidth: 1, borderStyle: 'dashed', borderRadius: radius.md, padding: space.xl, alignItems: 'center' },
 });

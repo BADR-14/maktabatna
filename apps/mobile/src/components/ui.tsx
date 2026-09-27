@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { useRevealFocused } from '@/components/auth-shell';
+import { useRevealFocused } from '@/components/form-scroll';
 import { BookLoader } from '@/components/book-loader';
 
 import { AppText } from '@/components/text';

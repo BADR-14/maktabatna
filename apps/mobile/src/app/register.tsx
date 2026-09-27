@@ -28,7 +28,7 @@ export default function Register() {
 
   async function submit() {
     if (Object.values(form).some((v) => !v.trim())) {
-      setError('عبّي كل الخانات');
+      setError('يرجى تعبئة جميع الحقول');
       return;
     }
     setBusy(true);
@@ -43,9 +43,9 @@ export default function Register() {
   }
 
   return (
-    <AuthShell subtitle="حساب جديد لأهل البيت" art={<Owl mood={owl.mood} look={owl.look} />}>
+    <AuthShell subtitle="حساب جديد لأفراد العائلة" art={<Owl mood={owl.mood} look={owl.look} />}>
       <AppText variant="title">حساب جديد</AppText>
-      <Field label="الاسم" value={form.displayName} onChangeText={set('displayName')} {...watch('displayName')} hint="بيبيّن لأهل البيت مين أضاف أو عدّل." />
+      <Field label="الاسم" value={form.displayName} onChangeText={set('displayName')} {...watch('displayName')} hint="يظهر لأفراد العائلة لمعرفة من أضاف أو عدّل." />
       <Field
         label="اسم المستخدم"
         value={form.username}
@@ -53,25 +53,25 @@ export default function Register() {
         {...watch('username')}
         autoCapitalize="none"
         autoCorrect={false}
-        hint="أحرف إنجليزية أو أرقام، ومسموح - و_ و. (متل badr-14)"
+        hint="أحرف إنجليزية أو أرقام، ويُسمح بـ - و_ و. (مثل badr-14)"
       />
       <Field
-        label="كلمة السر"
+        label="كلمة المرور"
         value={form.password}
         onChangeText={set('password')}
         onFocus={owl.password.onFocus}
         onBlur={owl.password.onBlur}
         reveal={owl.password.reveal}
-        hint="٦ أحرف أو أكتر"
+        hint="٦ أحرف على الأقل"
       />
       <Field label="رمز الدعوة" value={form.inviteCode} onChangeText={set('inviteCode')} {...watch('inviteCode')} autoCapitalize="none" autoCorrect={false} />
       <ErrorBox message={error} />
       <Button title="إنشاء الحساب" onPress={submit} loading={busy} />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
-        <AppText variant="muted">عندك حساب؟</AppText>
+        <AppText variant="muted">لديك حساب؟</AppText>
         <Link href="/login" replace>
           <AppText variant="label" style={{ color: c.accentText, fontSize: 13 }}>
-            سجّل دخول
+            سجّل الدخول
           </AppText>
         </Link>
       </View>

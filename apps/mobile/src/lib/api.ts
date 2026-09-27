@@ -49,7 +49,7 @@ export async function api<T>(path: string, init: { method?: 'GET' | 'POST'; body
     });
   } catch {
     throw new ApiError(
-      `ما قدرت وصل للسيرفر (${base}).\nتأكد إنو السيرفر شغّال عاللابتوب، وجرّب تفتح ${base}/health من متصفح الموبايل.`,
+      `تعذّر الاتصال بالخادم (${base}).\nتأكد من أن الخادم يعمل على الحاسوب، وجرّب فتح ${base}/health من متصفح الهاتف.`,
       0,
     );
   } finally {
@@ -59,7 +59,7 @@ export async function api<T>(path: string, init: { method?: 'GET' | 'POST'; body
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = Array.isArray(data?.message) ? data.message.join('\n') : data?.message;
-    throw new ApiError(typeof msg === 'string' && msg ? msg : 'صار خطأ بالسيرفر، جرّب كمان مرة.', res.status);
+    throw new ApiError(typeof msg === 'string' && msg ? msg : 'حدث خطأ في الخادم، حاول مرة أخرى.', res.status);
   }
   return data as T;
 }

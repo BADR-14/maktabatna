@@ -1,24 +1,23 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { formatArabicNumber, toFtsQuery } from '@maktabatna/shared';
+import { formatArabicNumber } from '@maktabatna/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSession } from '@/auth/session';
+import { Avatar } from '@/components/avatar';
 import { BookCover } from '@/components/book-cover';
-import { BookRow } from '@/components/book-row';
+import { AddBookFab } from '@/components/fab';
 import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
 import { deleteDemoData, demoCountQuery } from '@/db/demo';
-import { categoriesWithCountsQuery, recentBooksQuery, roomsSummaryQuery, searchBooksQuery, statsQuery } from '@/db/queries';
+import { categoriesWithCountsQuery, recentBooksQuery, roomsSummaryQuery, statsQuery } from '@/db/queries';
 import { categoryLook } from '@/lib/category-look';
+import { count } from '@/lib/plural';
 import { hash01 } from '@/three/room-scene';
 import { fonts, radius, space, useColors, type Palette } from '@/theme';
-
-type Hit = Awaited<ReturnType<typeof searchBooksQuery>>[number];
 
 const COVER_W = 104;
 
@@ -31,42 +30,18 @@ export default function Home() {
   const { data: cats } = useLiveQuery(categoriesWithCountsQuery);
   const { data: recent } = useLiveQuery(recentBooksQuery);
   const { data: demo } = useLiveQuery(demoCountQuery);
-  const [term, setTerm] = useState('');
-  const [found, setFound] = useState<{ fts: string; rows: Hit[] }>({
-    fts: '',
-    rows: [],
-  });
-  const fts = toFtsQuery(term);
-
-  // Search as you type (FTS5 on the phone: instant, works offline).
-  useEffect(() => {
-    if (!fts) return;
-    let live = true;
-    const t = setTimeout(() => {
-      searchBooksQuery(fts)
-        .then((rows) => live && setFound({ fts, rows }))
-        .catch(() => live && setFound({ fts, rows: [] }));
-    }, 120);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-  }, [fts]);
-  // null = not searching; while a new query runs, keep showing the previous results.
-  const hits: Hit[] | null = fts ? found.rows : null;
-
   const s = stats?.[0];
   const demoCount = Number(demo?.[0]?.n ?? 0);
 
   const confirmSignOut = () =>
-    Alert.alert('تسجيل الخروج', 'متأكد بدك تطلع من حسابك؟', [
-      { text: 'لأ', style: 'cancel' },
+    Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج من حسابك؟', [
+      { text: 'إلغاء', style: 'cancel' },
       { text: 'خروج', style: 'destructive', onPress: signOut },
     ]);
   const confirmDeleteDemo = () =>
-    Alert.alert('مسح البيانات التجريبية', 'رح تنمسح كل الكتب التجريبية. كتبكم الحقيقية ما بتتأثر.', [
-      { text: 'لأ', style: 'cancel' },
-      { text: 'امسح', style: 'destructive', onPress: () => deleteDemoData() },
+    Alert.alert('حذف البيانات التجريبية', 'ستُحذف جميع الكتب التجريبية، ولن تتأثر كتبكم الحقيقية.', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف', style: 'destructive', onPress: () => deleteDemoData() },
     ]);
 
   const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير';
@@ -76,15 +51,15 @@ export default function Home() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         style={{ backgroundColor: c.background }}
-        contentContainerStyle={{ paddingBottom: 48 }}
+        contentContainerStyle={{ paddingBottom: 110 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
         {/* 1. Greeting + 2. Search, on the burgundy header */}
         <LinearGradient colors={[c.primary, shade(c.primary)]} style={[styles.hero, { paddingTop: insets.top + space.md }]}>
           <View style={styles.heroTop}>
-            <View style={[styles.avatar, { borderColor: c.accent }]}>
-              <AppText style={[styles.avatarText, { color: c.accent }]}>{(user?.displayName ?? '؟').trim().charAt(0)}</AppText>
-            </View>
+            <PressLink href="/profile" accessibilityLabel="الملف الشخصي" hitSlop={6}>
+              {user ? <Avatar userId={user.id} name={user.displayName} size={48} ring={c.accent} /> : null}
+            </PressLink>
             <View style={{ flex: 1 }}>
               <AppText style={{ color: c.onPrimary, opacity: 0.8, fontSize: 13 }}>{greeting}</AppText>
               <AppText style={[styles.hello, { color: c.onPrimary }]} numberOfLines={1}>
@@ -106,51 +81,25 @@ export default function Home() {
             </Pressable>
           </View>
 
-          <View style={[styles.search, { backgroundColor: c.surface }]}>
-            <Ionicons name="search" size={20} color={term ? c.primary : c.textMuted} />
-            <TextInput
-              value={term}
-              onChangeText={setTerm}
-              placeholder="ابحث باسم الكتاب أو المؤلف أو المحقق"
-              placeholderTextColor={c.textMuted}
-              style={[styles.searchInput, { color: c.text }]}
-              returnKeyType="search"
-            />
-            {term ? (
-              <Pressable onPress={() => setTerm('')} hitSlop={10} accessibilityLabel="امسح البحث">
-                <Ionicons name="close-circle" size={20} color={c.textMuted} />
-              </Pressable>
-            ) : null}
-          </View>
+          <PressLink href="/search" accessibilityRole="search" style={({ pressed }) => [styles.search, { backgroundColor: c.surface, opacity: pressed ? 0.92 : 1 }]}>
+            <Ionicons name="search" size={20} color={c.textMuted} />
+            <AppText style={{ flex: 1, color: c.textMuted }} numberOfLines={1}>
+              ابحث باسم الكتاب أو المؤلف أو المحقق
+            </AppText>
+            <Ionicons name="options-outline" size={20} color={c.accentText} />
+          </PressLink>
         </LinearGradient>
 
-        {hits ? (
-          <View style={[styles.body, { marginTop: space.lg }]}>
-            <AppText variant="muted">
-              {hits.length === 0 ? 'ما لقيت شي بهالاسم. جرّب كلمة تانية.' : `${formatArabicNumber(hits.length)} نتيجة`}
-            </AppText>
-            <View style={{ gap: space.sm }}>
-              {hits.map((h) => (
-                <BookRow
-                  key={h.id}
-                  bookId={h.id}
-                  title={h.title}
-                  subtitle={[h.author, h.category].filter(Boolean).join(' · ')}
-                  href={{ pathname: '/book/[id]', params: { id: h.id } }}
-                />
-              ))}
-            </View>
-          </View>
-        ) : (
+
           <>
             {/* 3. Numbers: one card overlapping the header */}
             <View style={[styles.stats, { backgroundColor: c.surface, borderColor: c.line }]}>
               {(
                 [
-                  ['book-outline', s?.books, 'عنوان'],
-                  ['layers-outline', s?.volumes, 'مجلد'],
-                  ['people-outline', s?.authors, 'مؤلف'],
-                  ['copy-outline', s?.duplicates, 'مكرر'],
+                  ['book-outline', s?.books, 'العناوين'],
+                  ['layers-outline', s?.volumes, 'المجلدات'],
+                  ['people-outline', s?.authors, 'المؤلفون'],
+                  ['copy-outline', s?.duplicates, 'المكرّرة'],
                 ] as const
               ).map(([icon, n, label], i) => (
                 <View
@@ -209,7 +158,7 @@ export default function Home() {
                       {cat.name}
                     </AppText>
                     <AppText variant="muted" style={{ fontSize: 12 }}>
-                      {n === 0 ? 'فاضي' : `${formatArabicNumber(n)} ${n > 2 && n <= 10 ? 'كتب' : 'كتاب'}`}
+                      {n === 0 ? 'لا توجد كتب' : count(n, 'book')}
                     </AppText>
                   </PressLink>
                 );
@@ -222,7 +171,7 @@ export default function Home() {
             </View>
             {(recent ?? []).length === 0 ? (
               <View style={styles.body}>
-                <AppText variant="muted">لسا ما انضاف ولا كتاب.</AppText>
+                <AppText variant="muted">لم يُضَف أي كتاب بعد.</AppText>
               </View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
@@ -253,15 +202,15 @@ export default function Home() {
                   <Ionicons name="flask-outline" size={22} color={c.tintText} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <AppText variant="label" style={{ color: c.tintText }}>
-                      هي بيانات تجريبية
+                      هذه بيانات تجريبية
                     </AppText>
                     <AppText variant="muted">
-                      {formatArabicNumber(demoCount)} كتاب للعرض بس. امسحها لما تبلّش تدخّل كتبكم، وكتبكم الحقيقية ما بتتأثر.
+                      {count(demoCount, 'book')} للعرض فقط. احذفها عندما تبدأ بإدخال كتبكم، ولن تتأثر كتبكم الحقيقية.
                     </AppText>
                     <Pressable onPress={confirmDeleteDemo} hitSlop={8} style={styles.demoBtn}>
                       <Ionicons name="trash-outline" size={16} color={c.tintText} />
                       <AppText variant="label" style={{ color: c.tintText, fontSize: 14 }}>
-                        امسح البيانات التجريبية
+                        حذف البيانات التجريبية
                       </AppText>
                     </Pressable>
                   </View>
@@ -269,8 +218,9 @@ export default function Home() {
               </View>
             ) : null}
           </>
-        )}
+
       </ScrollView>
+      <AddBookFab href="/book/edit" />
     </>
   );
 }
@@ -293,7 +243,7 @@ function RoomCard({ room, tone, c }: { room: Room; tone: number; c: Palette }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${room.name}، ${room.bookcaseCount} مكتبات`}
+      accessibilityLabel={`${room.name}، ${count(Number(room.bookcaseCount), 'bookcase')}`}
       onPress={() =>
         router.push({
           pathname: '/room/[id]',
@@ -305,7 +255,7 @@ function RoomCard({ room, tone, c }: { room: Room; tone: number; c: Palette }) {
         <View style={{ flex: 1, gap: 4 }}>
           <AppText style={[styles.roomName, { color: '#FBEEE6' }]}>{room.name}</AppText>
           <AppText style={{ color: '#FBEEE6', opacity: 0.8, fontSize: 13 }}>
-            {formatArabicNumber(Number(room.bookcaseCount))} مكتبات · {formatArabicNumber(Number(room.volumeCount))} مجلد
+            {count(Number(room.bookcaseCount), 'bookcase')}، {count(Number(room.volumeCount), 'volume')}
           </AppText>
           <View style={styles.room3d}>
             <MaterialCommunityIcons name="cube-outline" size={14} color="#E7C98C" />

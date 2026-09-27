@@ -1,3 +1,4 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMigrations } from 'drizzle-orm/expo-sqlite/migrator';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -10,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import migrations from '../../drizzle/migrations';
 import { SessionProvider, useSession } from '@/auth/session';
+import { HeaderSearch } from '@/components/header-search';
 import { Intro } from '@/components/intro';
 import { db } from '@/db/client';
 import { fonts, useColors } from '@/theme';
@@ -36,6 +38,8 @@ export default function RootLayout() {
     [fonts.regular]: require('../../assets/fonts/IBMPlexSansArabic-Regular.ttf'),
     [fonts.medium]: require('../../assets/fonts/IBMPlexSansArabic-Medium.ttf'),
     [fonts.semibold]: require('../../assets/fonts/IBMPlexSansArabic-SemiBold.ttf'),
+    ...Ionicons.font,
+    ...MaterialCommunityIcons.font,
   });
   const { success: migrated, error: migrationError } = useMigrations(db, migrations);
   const ready = (fontsLoaded && migrated) || !!migrationError;
@@ -51,7 +55,7 @@ export default function RootLayout() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Text style={{ color: colors.text, textAlign: 'center' }}>
-          ما قدرت جهّز قاعدة البيانات: {migrationError.message}
+          تعذّر تجهيز قاعدة البيانات: {migrationError.message}
         </Text>
       </View>
     );
@@ -90,6 +94,7 @@ function RootStack() {
         headerTitleAlign: 'center',
         headerShadowVisible: false,
         contentStyle: { backgroundColor: colors.background },
+        headerRight: () => <HeaderSearch />,
       }}>
       <Stack.Protected guard={signedIn}>
         <Stack.Screen name="index" options={{ title: 'مكتبتنا' }} />
@@ -97,6 +102,10 @@ function RootStack() {
         <Stack.Screen name="shelf/[id]" options={{ title: '' }} />
         <Stack.Screen name="book/[id]" options={{ title: '' }} />
         <Stack.Screen name="category/[id]" options={{ title: '' }} />
+        <Stack.Screen name="book/edit" options={{ title: '' }} />
+        <Stack.Screen name="search" options={{ title: 'البحث', headerRight: () => null }} />
+        <Stack.Screen name="profile" options={{ title: 'الملف الشخصي' }} />
+        <Stack.Screen name="trash" options={{ title: 'سلة المحذوفات' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" options={{ headerShown: false }} />

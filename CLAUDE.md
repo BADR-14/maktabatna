@@ -2,7 +2,8 @@
 
 - The source of truth for every product and technical decision is `docs/PROJECT_BRIEF.md`. Read it first.
 - Guiding rules: everything free, best available option, and fast on the weakest phone (Redmi 13C).
-- The user writes Levantine Arabic; reply the same way. UI text is Arabic, numbers use Arabic-Indic digits (`toArabicDigits`).
+- The user writes Levantine Arabic; reply the same way. UI text is Modern Standard Arabic (فصحى, never dialect), numbers use Arabic-Indic digits (`toArabicDigits`), counted nouns go through `count()` in `src/lib/plural.ts`, and list separators are «،» (a middle dot looks like the digit ٠).
+- All catalogue writes go through `apps/mobile/src/db/mutations.ts` (stamps, field clocks, change_log, FTS).
 - npm workspaces: `apps/mobile` (Expo), `apps/server` (NestJS), `packages/shared` (Arabic normalization, vocabularies).
 - Mobile: see `apps/mobile/AGENTS.md`. Styling is plain StyleSheet + tokens in `src/theme` (no NativeWind).
 - Local DB: Drizzle schema `apps/mobile/src/db/schema.ts`; after editing it run `npx drizzle-kit generate` in `apps/mobile`.

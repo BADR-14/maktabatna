@@ -1,4 +1,4 @@
-import { formatArabicNumber, toArabicDigits } from '@maktabatna/shared';
+import { toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BookLoader } from '@/components/book-loader';
 import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
+import { count } from '@/lib/plural';
 import { roomBookcasesQuery, roomQuery, roomVolumesQuery, shelvesQuery } from '@/db/queries';
 import type { BookOnShelf, Opening, RoomLayout } from '@/three/room-scene';
 import { RoomView } from '@/three/room-view';
@@ -59,12 +60,12 @@ export default function RoomScreen() {
         />
       ) : (
         <View style={styles.center}>
-          <BookLoader label="عم تتحضّر الغرفة" />
+          <BookLoader label="جارٍ تجهيز الغرفة" />
         </View>
       )}
       {!selected ? (
         <View style={[styles.hint, { backgroundColor: 'rgba(23,15,16,0.72)' }]} pointerEvents="none">
-          <AppText style={{ color: '#F2E6E4', fontSize: 13 }}>اكبس على أي مكتبة · اسحب لتلف · قرّب بإصبعين</AppText>
+          <AppText style={{ color: '#F2E6E4', fontSize: 13 }}>اضغط على أي مكتبة، اسحب للتدوير، قرّب بإصبعين</AppText>
         </View>
       ) : (
         <BookcaseSheet bookcase={selected} highlightShelf={shelf} onClose={() => setSelectedId(null)} />
@@ -98,20 +99,19 @@ function BookcaseSheet({ bookcase, highlightShelf, onClose }: { bookcase: Bookca
         </View>
         <View style={{ flex: 1 }}>
           <AppText variant="label" style={{ fontSize: 17 }}>
-            مكتبة {toArabicDigits(bookcase.number)} · {bookcase.name}
+            مكتبة {toArabicDigits(bookcase.number)}، {bookcase.name}
           </AppText>
           <AppText variant="muted">
-            {bookcase.kind === 'glass' ? 'زجاج' : 'مفتوحة'} · {formatArabicNumber(shelfCount)} {shelfCount === 1 ? 'رف' : 'رفوف'} ·{' '}
-            {formatArabicNumber(Number(bookcase.volumeCount))} كتاب
+            {bookcase.kind === 'glass' ? 'زجاجية' : 'مفتوحة'}، {count(shelfCount, 'shelf')}، {count(Number(bookcase.volumeCount), 'volume')}
           </AppText>
         </View>
-        <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="رجوع للغرفة" style={[styles.close, { borderColor: c.line }]}>
+        <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="العودة إلى الغرفة" style={[styles.close, { borderColor: c.line }]}>
           <AppText style={{ fontSize: 16, lineHeight: 20 }}>✕</AppText>
         </Pressable>
       </View>
 
       <AppText variant="muted" style={{ marginTop: space.md, marginBottom: space.sm }}>
-        الرفوف (من فوق لتحت)
+        الرفوف (من الأعلى إلى الأسفل)
       </AppText>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
         {(shelves ?? []).map((s) => (
@@ -127,9 +127,9 @@ function BookcaseSheet({ bookcase, highlightShelf, onClose }: { bookcase: Bookca
               },
             ]}>
             <AppText variant="label" style={{ fontSize: 14 }}>
-              {s.kind === 'top' ? 'فوق المكتبة' : `الرف ${toArabicDigits(s.number)}`}
+              {s.kind === 'top' ? 'أعلى المكتبة' : `الرف ${toArabicDigits(s.number)}`}
             </AppText>
-            <AppText variant="muted">{formatArabicNumber(s.volumeCount)} كتاب</AppText>
+            <AppText variant="muted">{s.volumeCount ? count(s.volumeCount, 'volume') : 'فارغ'}</AppText>
           </PressLink>
         ))}
       </ScrollView>

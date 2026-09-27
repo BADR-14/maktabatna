@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNotNull, isNull, sql, type SQL } from 'drizzle-orm';
 
 import { db } from './client';
 import { bookPersons, bookcases, books, categories, copies, persons, rooms, sections, shelves, users, volumes } from './schema';
@@ -240,4 +240,70 @@ export function bookLocationsQuery(bookId: string) {
     .where(and(eq(copies.bookId, bookId), isNull(copies.deletedAt)))
     .groupBy(copies.id, shelves.id)
     .orderBy(asc(copies.createdAt), sql`min(${volumes.volumeNumber})`);
+}
+
+export type BrowseSort = 'title' | 'recent' | 'volumes';
+export type BrowseFilters = {
+  /** FTS5 query from toFtsQuery(); empty = no text filter. */
+  match?: string;
+  categoryId?: string | null;
+  roomId?: string | null;
+  volumes?: 'single' | 'multi' | null;
+  sort?: BrowseSort;
+};
+
+/** Search + filters, shared by the search screen and the category screen. All filters combine. */
+export function browseBooksQuery(f: BrowseFilters) {
+  const where: SQL[] = [isNull(books.deletedAt)];
+  if (f.match) where.push(sql`${books.id} in (select book_id from books_fts where books_fts match ${f.match})`);
+  if (f.categoryId) where.push(eq(books.categoryId, f.categoryId));
+  if (f.volumes === 'single') where.push(eq(books.totalVolumes, 1));
+  if (f.volumes === 'multi') where.push(sql`${books.totalVolumes} > 1`);
+  if (f.roomId)
+    where.push(sql`exists (
+      select 1 from ${copies} c join ${volumes} v on v.copy_id = c.id join ${shelves} sh on sh.id = v.shelf_id
+      join ${sections} se on se.id = sh.section_id join ${bookcases} b on b.id = se.bookcase_id
+      where c.book_id = ${books.id} and c.deleted_at is null and v.deleted_at is null and b.room_id = ${f.roomId}
+    )`);
+  const order =
+    f.sort === 'recent' ? [desc(books.createdAt)] : f.sort === 'volumes' ? [desc(books.totalVolumes), asc(books.titleNorm)] : [asc(books.titleNorm)];
+  return db
+    .select({ id: books.id, title: books.title, author: authorName, totalVolumes: books.totalVolumes, category: categories.name })
+    .from(books)
+    .leftJoin(categories, eq(categories.id, books.categoryId))
+    .where(and(...where))
+    .orderBy(...order)
+    .limit(300);
+}
+
+export const roomsQuery = db.select({ id: rooms.id, name: rooms.name }).from(rooms).where(isNull(rooms.deletedAt)).orderBy(asc(rooms.sortOrder));
+
+/** Every shelf in the house, for the "where is it?" picker: room → bookcase → shelf. */
+export const allShelvesQuery = db
+  .select({
+    shelfId: shelves.id,
+    shelfNumber: shelves.number,
+    kind: shelves.kind,
+    bookcaseId: bookcases.id,
+    bookcaseNumber: bookcases.number,
+    bookcaseName: bookcases.name,
+    roomId: rooms.id,
+    roomName: rooms.name,
+  })
+  .from(shelves)
+  .innerJoin(sections, eq(sections.id, shelves.sectionId))
+  .innerJoin(bookcases, eq(bookcases.id, sections.bookcaseId))
+  .innerJoin(rooms, eq(rooms.id, bookcases.roomId))
+  .where(and(isNull(shelves.deletedAt), isNull(bookcases.deletedAt)))
+  .orderBy(asc(rooms.sortOrder), asc(bookcases.number), asc(shelves.number));
+
+/** Titles in the trash, newest first. */
+export const trashQuery = db
+  .select({ id: books.id, title: books.title, author: authorName, deletedAt: books.deletedAt, totalVolumes: books.totalVolumes })
+  .from(books)
+  .where(isNotNull(books.deletedAt))
+  .orderBy(desc(books.deletedAt));
+
+export function userQuery(id: string) {
+  return db.select().from(users).where(eq(users.id, id));
 }

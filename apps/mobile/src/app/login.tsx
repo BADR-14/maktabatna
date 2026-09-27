@@ -30,7 +30,7 @@ export default function Login() {
 
   async function submit() {
     if (!username.trim() || !password) {
-      setError('اكتب اسم المستخدم وكلمة السر');
+      setError('أدخل اسم المستخدم وكلمة المرور');
       return;
     }
     setBusy(true);
@@ -64,7 +64,7 @@ export default function Login() {
       />
       <Field
         ref={passwordRef}
-        label="كلمة السر"
+        label="كلمة المرور"
         value={password}
         onChangeText={setPassword}
         onFocus={owl.password.onFocus}
@@ -76,44 +76,44 @@ export default function Login() {
       <ErrorBox message={error} />
       <Button title="دخول" onPress={submit} loading={busy} />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
-        <AppText variant="muted">ما عندك حساب؟</AppText>
+        <AppText variant="muted">ليس لديك حساب؟</AppText>
         <Link href="/register" replace>
           <AppText variant="label" style={{ color: c.accentText, fontSize: 13 }}>
-            افتح حساب جديد
+            أنشئ حساباً جديداً
           </AppText>
         </Link>
       </View>
       <Pressable onPress={() => setShowServer((v) => !v)} hitSlop={8}>
         <AppText variant="muted" style={{ textAlign: 'center' }}>
-          {showServer ? 'إخفاء عنوان السيرفر' : 'عنوان السيرفر'}
+          {showServer ? 'إخفاء عنوان الخادم' : 'عنوان الخادم'}
         </AppText>
       </Pressable>
       {showServer ? (
         <Field
-          label="عنوان السيرفر"
+          label="عنوان الخادم"
           value={server}
           onChangeText={setServer}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
-          hint="بيتعبّى لحاله. غيّره بس إذا ما قدر يوصل."
+          hint="يُعبّأ تلقائياً. غيّره فقط إذا تعذّر الاتصال."
         />
       ) : null}
       {showServer ? (
         <Pressable
           hitSlop={8}
           onPress={async () => {
-            setCheck('عم جرّب…');
+            setCheck('جارٍ الاختبار…');
             await setServerUrl(server);
             try {
               await api('/health');
-              setCheck('✓ السيرفر واصل وشغّال');
+              setCheck('✓ الخادم متصل ويعمل');
             } catch (e) {
               setCheck(e instanceof Error ? e.message : String(e));
             }
           }}>
           <AppText variant="label" style={{ color: c.accentText, textAlign: 'center' }}>
-            جرّب الاتصال
+            اختبر الاتصال
           </AppText>
         </Pressable>
       ) : null}

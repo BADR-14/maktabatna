@@ -27,7 +27,7 @@ export function BookLoader({ size = 72, label, cover }: { size?: number; label?:
 
   const page = { width: w, height: h, backgroundColor: '#F3E6CC', borderColor: c.accent };
   return (
-    <View style={styles.wrap} accessibilityRole="progressbar" accessibilityLabel={label ?? 'عم يحمّل'}>
+    <View style={styles.wrap} accessibilityRole="progressbar" accessibilityLabel={label ?? 'جارٍ التحميل'}>
       {/* Book is drawn left-to-right regardless of RTL: its spine is always in the middle. */}
       <View style={[styles.book, { direction: 'ltr' }]}>
         <View style={[styles.cover, { width: size + 8, height: h + 8, backgroundColor: cover ?? c.primary }]} />

@@ -24,6 +24,8 @@ export const users = sqliteTable('users', {
   ...common,
   displayName: text('display_name').notNull(),
   username: text('username').notNull(),
+  /** Profile photo, a file in the app's document directory (local for now; synced with photos later). */
+  avatarUri: text('avatar_uri'),
 });
 
 export const rooms = sqliteTable('rooms', {

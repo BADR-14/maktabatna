@@ -1,15 +1,15 @@
 /** Fixed vocabularies agreed in docs/PROJECT_BRIEF.md. Stored values are English keys; labels are Arabic. */
 
 export const PLACEMENTS = {
-  standing: 'واقف',
-  lying: 'ممدود بين الكتب',
-  on_top: 'فوق المكتبة',
+  standing: 'قائم',
+  lying: 'موضوع أفقياً بين الكتب',
+  on_top: 'أعلى المكتبة',
 } as const;
 export type Placement = keyof typeof PLACEMENTS;
 
 export const ROWS = {
-  front: 'قدام',
-  back: 'ورا',
+  front: 'الصف الأمامي',
+  back: 'الصف الخلفي',
 } as const;
 export type Row = keyof typeof ROWS;
 
@@ -23,13 +23,13 @@ export type PersonRole = keyof typeof PERSON_ROLES;
 
 export const BOOKCASE_KINDS = {
   open: 'مفتوحة',
-  glass: 'زجاج',
+  glass: 'زجاجية',
 } as const;
 export type BookcaseKind = keyof typeof BOOKCASE_KINDS;
 
 export const SHELF_KINDS = {
   shelf: 'رف',
-  top: 'فوق المكتبة',
+  top: 'أعلى المكتبة',
 } as const;
 export type ShelfKind = keyof typeof SHELF_KINDS;
 

@@ -28,11 +28,11 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const invite = process.env.INVITE_CODE;
     if (!invite || !sameSecret(dto.inviteCode.trim(), invite)) {
-      throw new ForbiddenException('رمز الدعوة غلط');
+      throw new ForbiddenException('رمز الدعوة غير صحيح');
     }
     const username = dto.username.trim().toLowerCase();
     if (await this.prisma.user.findUnique({ where: { username } })) {
-      throw new ConflictException('اسم المستخدم مستعمل');
+      throw new ConflictException('اسم المستخدم مستخدم مسبقاً');
     }
     const now = BigInt(Date.now());
     const id = randomUUID();
@@ -55,7 +55,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { username: dto.username.trim().toLowerCase() } });
     // Same message for unknown user and wrong password.
     if (!user || user.deletedAt !== null || !(await verify(user.passwordHash, dto.password))) {
-      throw new UnauthorizedException('اسم المستخدم أو كلمة السر غلط');
+      throw new UnauthorizedException('اسم المستخدم أو كلمة المرور غير صحيحة');
     }
     return this.issueTokens(user);
   }
@@ -67,7 +67,7 @@ export class AuthService {
       include: { user: true },
     });
     if (!row || row.expiresAt < BigInt(Date.now()) || row.user.deletedAt !== null) {
-      throw new UnauthorizedException('انتهت الجلسة، سجّل دخول من جديد');
+      throw new UnauthorizedException('انتهت الجلسة، سجّل الدخول من جديد');
     }
     await this.prisma.refreshToken.delete({ where: { id: row.id } });
     return this.issueTokens(row.user);
