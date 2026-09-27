@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <title>البومة: الوضعيات</title>
 <style>
-  body { margin: 0; background: #7A2230; font-family: sans-serif; display: flex; gap: 28px; padding: 28px; justify-content: center; }
+  body { margin: 0; background: #7A2230; font-family: sans-serif; display: flex; flex-wrap: wrap; gap: 28px; padding: 28px; justify-content: center; }
   .pose { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #FBEEE6; font-size: 18px; }
   .owl { position: relative; width: 134px; height: 140px; }
   .owl * { position: absolute; box-sizing: border-box; }
@@ -20,6 +20,9 @@
   .beak { left: 60px; top: 70px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 14px solid #C9A15A; }
   .talon { top: 132px; width: 6px; height: 9px; border-radius: 0 0 3px 3px; background: #C9A15A; }
   .wing { top: 64px; width: 30px; height: 64px; background: #5E3B25; border: 1px solid #4A2D1C; border-radius: 15px 15px 22px 22px; transform-origin: 50% 10%; }
+  .rcover { left: 19px; top: 84px; width: 96px; height: 54px; border-radius: 5px; background: #1F3B2C; border: 2px solid #D6AE63; }
+  .rpage { top: 86px; width: 44px; height: 48px; background: #F6EBD3; border: 1px solid #D9C49C; border-radius: 3px; padding: 10px 5px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .rpage i { position: static; display: block; height: 2px; background: #B9A27A; border-radius: 1px; }
   .books { display: flex; flex-direction: column; align-items: flex-start; margin-top: -8px; }
   .book { height: 14px; border-radius: 3px; margin-top: 2px; }
 </style>
@@ -45,6 +48,22 @@
       <div class="wing" style="left:6px;transform:rotate(${-l}deg)"></div><div class="wing" style="right:6px;transform:rotate(${r}deg)"></div>
     </div><div class="books"><div class="book" style="background:#1F3B2C;width:150px"></div><div class="book" style="background:#8C2A24;width:138px;margin-left:12px"></div><div class="book" style="background:#1D2742;width:160px;margin-left:-6px"></div></div>
     <div>${label}</div></div>`);
+  }
+  // The reading owl from the opening animation: three moments of the page turning left-to-right.
+  const lines = [85, 70, 90, 60, 80].map((w) => `<i style="width:${w}%"></i>`).join('');
+  for (const [label, read, flip] of [['عم تقرأ', 0.8, 0], ['عم تقلب الصفحة', 0.5, 0.45], ['كمّلت', 0.2, 0.9]]) {
+    const px = (read - 0.5) * 10;
+    const eye = (x) => `<div class="eye" style="left:${x}px"><div class="pupil" style="transform:translate(${px}px,4px)"><div class="glint"></div></div></div>`;
+    const chevrons = [0, 1, 2].map((row) => [0, 1, 2].map((i) => `<div class="chev" style="left:${14 + i * 17}px;top:${10 + row * 11}px"></div>`).join('')).join('');
+    document.body.insertAdjacentHTML('beforeend', `<div class="pose"><div class="owl">
+      <div class="tuft" style="left:20px;transform:rotate(-20deg)"></div><div class="tuft" style="right:20px;transform:rotate(20deg)"></div>
+      <div class="body"></div><div class="belly">${chevrons}</div>
+      <div class="disc" style="left:14px"></div><div class="disc" style="left:66px"></div>${eye(23)}${eye(75)}<div class="beak"></div>
+      <div class="wing" style="left:4px;transform:rotate(-4deg)"></div><div class="wing" style="right:4px;transform:rotate(4deg)"></div>
+      <div class="rcover"></div><div class="rpage" style="left:23px">${lines}</div><div class="rpage" style="left:67px">${lines}</div>
+      <div class="rpage" style="left:23px;transform-origin:right center;transform:perspective(500px) rotateY(${flip * 180}deg)">${lines}</div>
+      <div style="left:13px;top:100px;width:14px;height:22px;border-radius:7px;background:#5E3B25;border:1px solid #4A2D1C"></div><div style="right:13px;top:100px;width:14px;height:22px;border-radius:7px;background:#5E3B25;border:1px solid #4A2D1C"></div>
+    </div><div style="height:30px"></div><div>${label}</div></div>`);
   }
 </script>
 </body>

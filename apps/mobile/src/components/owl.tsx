@@ -69,39 +69,7 @@ export function Owl({ mood, look }: { mood: OwlMood; /** 0 = far left … 1 = fa
     // A picture: always laid out left-to-right, whatever the app's direction.
     <View style={styles.wrap} pointerEvents="none">
       <Animated.View style={[styles.owl, bodyStyle]}>
-        <View style={[styles.tuft, { left: 20, transform: [{ rotate: '-20deg' }] }]} />
-        <View style={[styles.tuft, { right: 20, transform: [{ rotate: '20deg' }] }]} />
-        <View style={styles.body} />
-        <View style={styles.belly}>
-          {[0, 1, 2].map((row) => (
-            <View key={row} style={styles.chevronRow}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={styles.chevron} />
-              ))}
-            </View>
-          ))}
-        </View>
-        <View style={[styles.disc, { left: 14 }]} />
-        <View style={[styles.disc, { left: 66 }]} />
-        {[23, 75].map((x) => (
-          <View key={x} style={[styles.eye, { left: x }]}>
-            <Animated.View style={[styles.pupil, pupil]}>
-              <View style={styles.glint} />
-            </Animated.View>
-            <Animated.View style={[styles.lid, lid]} />
-          </View>
-        ))}
-        <View style={styles.beak} />
-        <View style={[styles.feet, { left: 38 }]}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.talon} />
-          ))}
-        </View>
-        <View style={[styles.feet, { left: 74 }]}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.talon} />
-          ))}
-        </View>
+        <OwlFigure pupilStyle={pupil} lidStyle={lid} />
         {/* Wings last so they pass over the face. Each hangs from its shoulder and swings up. */}
         <Animated.View style={[styles.wing, { left: 6 }, leftWing]} />
         <Animated.View style={[styles.wing, { right: 6 }, rightWing]} />
@@ -117,6 +85,113 @@ export function Owl({ mood, look }: { mood: OwlMood; /** 0 = far left … 1 = fa
           <View style={styles.bookBand} />
         </View>
       </View>
+    </View>
+  );
+}
+
+type AnimStyle = ReturnType<typeof useAnimatedStyle>;
+
+/** Body, face, eyes and feet: everything but the wings, shared by both owls. */
+function OwlFigure({ pupilStyle, lidStyle }: { pupilStyle: AnimStyle; lidStyle: AnimStyle }) {
+  return (
+    <>
+      <View style={[styles.tuft, { left: 20, transform: [{ rotate: '-20deg' }] }]} />
+      <View style={[styles.tuft, { right: 20, transform: [{ rotate: '20deg' }] }]} />
+      <View style={styles.body} />
+      <View style={styles.belly}>
+        {[0, 1, 2].map((row) => (
+          <View key={row} style={styles.chevronRow}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.chevron} />
+            ))}
+          </View>
+        ))}
+      </View>
+      <View style={[styles.disc, { left: 14 }]} />
+      <View style={[styles.disc, { left: 66 }]} />
+      {[23, 75].map((x) => (
+        <View key={x} style={[styles.eye, { left: x }]}>
+          <Animated.View style={[styles.pupil, pupilStyle]}>
+            <View style={styles.glint} />
+          </Animated.View>
+          <Animated.View style={[styles.lid, lidStyle]} />
+        </View>
+      ))}
+      <View style={styles.beak} />
+      <View style={[styles.feet, { left: 38 }]}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.talon} />
+        ))}
+      </View>
+      <View style={[styles.feet, { left: 74 }]}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.talon} />
+        ))}
+      </View>
+    </>
+  );
+}
+
+/**
+ * The opening animation's star: the owl holding an open book, reading right to left like an
+ * Arabic reader, then turning the page from left to right (the way an Arabic book turns).
+ */
+export function OwlReader() {
+  const read = useSharedValue(0.8);
+  const flip = useSharedValue(0);
+  const blink = useSharedValue(0);
+
+  useEffect(() => {
+    // Eyes: along a line from right to left, then a quick hop back to the next line.
+    read.value = withRepeat(
+      withSequence(withTiming(0.18, { duration: 760, easing: Easing.inOut(Easing.quad) }), withTiming(0.8, { duration: 140 })),
+      -1,
+      false,
+    );
+    // Page: rest, turn over to the right, rest…
+    flip.value = withRepeat(withSequence(withDelay(900, withTiming(1, { duration: 650, easing: Easing.inOut(Easing.cubic) })), withTiming(0, { duration: 0 })), -1, false);
+    blink.value = withRepeat(withSequence(withDelay(2600, withTiming(1, { duration: 80 })), withTiming(0, { duration: 120 })), -1, false);
+  }, [read, flip, blink]);
+
+  const pupil = useAnimatedStyle(() => ({ transform: [{ translateX: (read.value - 0.5) * 10 }, { translateY: 4 }] }));
+  const lid = useAnimatedStyle(() => ({ height: `${blink.value * 100}%` }));
+  const page = useAnimatedStyle(() => ({
+    transform: [{ perspective: 500 }, { rotateY: `${flip.value * 180}deg` }],
+    opacity: flip.value > 0.98 ? 0 : 1,
+  }));
+
+  return (
+    <View style={styles.wrap} pointerEvents="none">
+      <View style={styles.owl}>
+        <OwlFigure pupilStyle={pupil} lidStyle={lid} />
+        {/* Wings behind the book, holding it by its sides. */}
+        <View style={[styles.wing, { left: 4, transform: [{ rotate: '-4deg' }] }]} />
+        <View style={[styles.wing, { right: 4, transform: [{ rotate: '4deg' }] }]} />
+        <View style={styles.readCover} />
+        <View style={[styles.readPage, { left: 23 }]}>
+          <PageLines />
+        </View>
+        <View style={[styles.readPage, { left: 67 }]}>
+          <PageLines />
+        </View>
+        <Animated.View style={[styles.readPage, { left: 23, transformOrigin: 'right center' }, page]}>
+          <PageLines />
+        </Animated.View>
+        <View style={styles.readSpine} />
+        {/* Wing tips over the cover's edges, gripping it. */}
+        <View style={[styles.grip, { left: 13 }]} />
+        <View style={[styles.grip, { right: 13 }]} />
+      </View>
+    </View>
+  );
+}
+
+function PageLines() {
+  return (
+    <View style={styles.lines}>
+      {[0.85, 0.7, 0.9, 0.6, 0.8].map((w, i) => (
+        <View key={i} style={[styles.line, { width: `${w * 100}%` }]} />
+      ))}
     </View>
   );
 }
@@ -214,6 +289,21 @@ const styles = StyleSheet.create({
   books: { marginTop: -8, alignItems: 'flex-start' },
   book: { height: 14, borderRadius: 3, marginTop: 2, justifyContent: 'center', paddingHorizontal: 10 },
   bookBand: { height: 2, width: 18, backgroundColor: '#D6AE63', borderRadius: 1, alignSelf: 'flex-end' },
+  readCover: { position: 'absolute', left: 19, top: 84, width: 96, height: 54, borderRadius: 5, backgroundColor: '#1F3B2C', borderWidth: 2, borderColor: '#D6AE63' },
+  readPage: {
+    position: 'absolute',
+    top: 86,
+    width: 44,
+    height: 48,
+    backgroundColor: '#F6EBD3',
+    borderWidth: 1,
+    borderColor: '#D9C49C',
+    borderRadius: 3,
+  },
+  grip: { position: 'absolute', top: 100, width: 14, height: 22, borderRadius: 7, backgroundColor: C.wing, borderWidth: 1, borderColor: C.wingEdge },
+  readSpine: { position: 'absolute', left: 66, top: 86, width: 2, height: 48, backgroundColor: '#C9B48E' },
+  lines: { flex: 1, justifyContent: 'center', alignItems: 'flex-end', gap: 5, paddingHorizontal: 5 },
+  line: { height: 2, borderRadius: 1, backgroundColor: '#B9A27A' },
 });
 
 /** Wires text fields to the owl: which field has focus, and how far along the typing is. */

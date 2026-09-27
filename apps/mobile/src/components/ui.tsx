@@ -1,5 +1,7 @@
 import { forwardRef } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+
+import { BookLoader } from '@/components/book-loader';
 
 import { AppText } from '@/components/text';
 import { fonts, radius, space, useColors } from '@/theme';
@@ -30,7 +32,7 @@ export function Button({
         { opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
       ]}>
       {loading ? (
-        <ActivityIndicator color={primary ? c.onPrimary : c.primary} />
+        <BookLoader size={30} cover={primary ? c.accent : c.primary} />
       ) : (
         <AppText variant="label" style={{ color: primary ? c.onPrimary : c.accentText, fontSize: 16 }}>
           {title}
