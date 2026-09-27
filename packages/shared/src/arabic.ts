@@ -32,10 +32,26 @@ export function normalizeArabic(input: string): string {
     .trim();
 }
 
+/** Drops the definite article so "فقه" finds "الفقه" (and "بالفقه", "والفقه"). */
+function stripArticle(word: string): string {
+  const m = /^(?:و|ف|ب|ك)?(?:ال|لل)(.{2,})$/.exec(word);
+  return m ? m[1] : word;
+}
+
+/**
+ * Text to store in the FTS index for a book: normalized words, plus each word without its
+ * article, so prefix search works whether or not the user types "ال".
+ */
+export function searchIndexText(...parts: (string | null | undefined)[]): string {
+  const words = normalizeArabic(parts.filter(Boolean).join(' ')).split(' ').filter(Boolean);
+  const extra = words.map(stripArticle).filter((w, i) => w !== words[i]);
+  return [...words, ...extra].join(' ');
+}
+
 /** Builds an FTS5 prefix query from what the user typed: every word must match as a prefix. */
 export function toFtsQuery(input: string): string {
   const words = normalizeArabic(input).split(' ').filter(Boolean);
-  return words.map((w) => `"${w}"*`).join(' ');
+  return words.map((w) => `"${stripArticle(w)}"*`).join(' ');
 }
 
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';

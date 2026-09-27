@@ -1,16 +1,18 @@
-import { and, asc, count, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from './client';
-import { bookcases, rooms, sections, shelves, volumes } from './schema';
+import { bookPersons, bookcases, books, categories, copies, persons, rooms, sections, shelves, users, volumes } from './schema';
 
+// Correlated subqueries name the outer table literally ("bookcases"."id"): in a single-table select
+// drizzle prints bare column names, which would be ambiguous inside the subquery.
 const bookcaseVolumes = sql<number>`(
   select count(*) from ${volumes} v join ${shelves} sh on sh.id = v.shelf_id join ${sections} se on se.id = sh.section_id
-  where se.bookcase_id = ${bookcases.id} and v.deleted_at is null
+  where se.bookcase_id = "bookcases"."id" and v.deleted_at is null
 )`;
 
 const bookcaseShelves = sql<number>`(
   select count(*) from ${shelves} sh join ${sections} se on se.id = sh.section_id
-  where se.bookcase_id = ${bookcases.id} and sh.kind = 'shelf' and sh.deleted_at is null and se.deleted_at is null
+  where se.bookcase_id = "bookcases"."id" and sh.kind = 'shelf' and sh.deleted_at is null and se.deleted_at is null
 )`;
 
 /** Home screen: each room with its bookcase and book counts. */
@@ -18,10 +20,10 @@ export const roomsSummaryQuery = db
   .select({
     id: rooms.id,
     name: rooms.name,
-    bookcaseCount: sql<number>`(select count(*) from ${bookcases} b where b.room_id = ${rooms.id} and b.deleted_at is null)`,
+    bookcaseCount: sql<number>`(select count(*) from ${bookcases} b where b.room_id = "rooms"."id" and b.deleted_at is null)`,
     volumeCount: sql<number>`(
       select count(*) from ${volumes} v join ${shelves} sh on sh.id = v.shelf_id join ${sections} se on se.id = sh.section_id
-      join ${bookcases} b on b.id = se.bookcase_id where b.room_id = ${rooms.id} and v.deleted_at is null
+      join ${bookcases} b on b.id = se.bookcase_id where b.room_id = "rooms"."id" and v.deleted_at is null
     )`,
   })
   .from(rooms)
@@ -90,4 +92,140 @@ export function shelfQuery(shelfId: string) {
     .innerJoin(bookcases, eq(bookcases.id, sections.bookcaseId))
     .innerJoin(rooms, eq(rooms.id, bookcases.roomId))
     .where(eq(shelves.id, shelfId));
+}
+
+/** Every volume in a room, for drawing the books in 3D: per bookcase, per shelf, from the right. */
+export function roomVolumesQuery(roomId: string) {
+  return db
+    .select({ bookcaseId: bookcases.id, shelfNumber: shelves.number, bookId: copies.bookId, placement: volumes.placement })
+    .from(volumes)
+    .innerJoin(copies, eq(copies.id, volumes.copyId))
+    .innerJoin(shelves, eq(shelves.id, volumes.shelfId))
+    .innerJoin(sections, eq(sections.id, shelves.sectionId))
+    .innerJoin(bookcases, eq(bookcases.id, sections.bookcaseId))
+    .where(and(eq(bookcases.roomId, roomId), isNull(volumes.deletedAt)))
+    .orderBy(asc(bookcases.number), asc(shelves.number), asc(volumes.row), asc(volumes.position));
+}
+
+/** Home numbers: titles, physical volumes, authors, and titles owned more than once. */
+export const statsQuery = db
+  .select({
+    books: sql<number>`(select count(*) from ${books} where deleted_at is null)`,
+    volumes: sql<number>`(select count(*) from ${volumes} where deleted_at is null)`,
+    authors: sql<number>`(select count(distinct person_id) from ${bookPersons} where role = 'author' and deleted_at is null)`,
+    duplicates: sql<number>`(select count(*) from (select book_id from ${copies} where deleted_at is null group by book_id having count(*) > 1))`,
+  })
+  .from(sql`(select 1)`);
+
+export const categoriesWithCountsQuery = db
+  .select({
+    id: categories.id,
+    name: categories.name,
+    count: sql<number>`(select count(*) from ${books} b where b.category_id = "categories"."id" and b.deleted_at is null)`,
+  })
+  .from(categories)
+  .where(isNull(categories.deletedAt))
+  .orderBy(asc(categories.sortOrder));
+
+const authorName = sql<string | null>`(
+  select p.name from ${bookPersons} bp join ${persons} p on p.id = bp.person_id
+  where bp.book_id = "books"."id" and bp.role = 'author' and bp.deleted_at is null order by bp.sort_order limit 1
+)`;
+
+export const recentBooksQuery = db
+  .select({ id: books.id, title: books.title, author: authorName, addedBy: users.displayName, createdAt: books.createdAt })
+  .from(books)
+  .leftJoin(users, eq(users.id, books.createdBy))
+  .where(isNull(books.deletedAt))
+  .orderBy(desc(books.createdAt))
+  .limit(5);
+
+/** Full-text search; `match` is an FTS5 query built with toFtsQuery(). */
+export function searchBooksQuery(match: string) {
+  return db
+    .select({ id: books.id, title: books.title, author: authorName, category: categories.name })
+    .from(sql`books_fts`)
+    .innerJoin(books, sql`${books.id} = books_fts.book_id`)
+    .leftJoin(categories, eq(categories.id, books.categoryId))
+    .where(and(sql`books_fts match ${match}`, isNull(books.deletedAt)))
+    .orderBy(sql`rank`)
+    .limit(30);
+}
+
+export function categoryBooksQuery(categoryId: string) {
+  return db
+    .select({ id: books.id, title: books.title, author: authorName, totalVolumes: books.totalVolumes })
+    .from(books)
+    .where(and(eq(books.categoryId, categoryId), isNull(books.deletedAt)))
+    .orderBy(asc(books.titleNorm));
+}
+
+export function categoryQuery(id: string) {
+  return db.select().from(categories).where(eq(categories.id, id));
+}
+
+/** Books on one shelf in order from the right, grouped later into runs of the same copy. */
+export function shelfVolumesQuery(shelfId: string) {
+  return db
+    .select({
+      volumeId: volumes.id,
+      copyId: volumes.copyId,
+      volumeNumber: volumes.volumeNumber,
+      placement: volumes.placement,
+      bookId: books.id,
+      title: books.title,
+      author: authorName,
+      totalVolumes: books.totalVolumes,
+    })
+    .from(volumes)
+    .innerJoin(copies, eq(copies.id, volumes.copyId))
+    .innerJoin(books, eq(books.id, copies.bookId))
+    .where(and(eq(volumes.shelfId, shelfId), isNull(volumes.deletedAt)))
+    .orderBy(asc(volumes.row), asc(volumes.position));
+}
+
+export function bookQuery(id: string) {
+  return db
+    .select({ book: books, category: categories.name, addedBy: users.displayName })
+    .from(books)
+    .leftJoin(categories, eq(categories.id, books.categoryId))
+    .leftJoin(users, eq(users.id, books.createdBy))
+    .where(eq(books.id, id));
+}
+
+export function bookPeopleQuery(bookId: string) {
+  return db
+    .select({ name: persons.name, role: bookPersons.role, deathYearHijri: persons.deathYearHijri })
+    .from(bookPersons)
+    .innerJoin(persons, eq(persons.id, bookPersons.personId))
+    .where(and(eq(bookPersons.bookId, bookId), isNull(bookPersons.deletedAt)))
+    .orderBy(asc(bookPersons.sortOrder));
+}
+
+/** Where a book's volumes are: one row per copy + shelf, with the volume range there. */
+export function bookLocationsQuery(bookId: string) {
+  return db
+    .select({
+      copyId: copies.id,
+      shelfId: shelves.id,
+      shelfNumber: shelves.number,
+      bookcaseId: bookcases.id,
+      bookcaseNumber: bookcases.number,
+      bookcaseName: bookcases.name,
+      roomId: rooms.id,
+      roomName: rooms.name,
+      placement: sql<string>`min(${volumes.placement})`,
+      fromVolume: sql<number | null>`min(${volumes.volumeNumber})`,
+      toVolume: sql<number | null>`max(${volumes.volumeNumber})`,
+      count: count(volumes.id),
+    })
+    .from(copies)
+    .innerJoin(volumes, and(eq(volumes.copyId, copies.id), isNull(volumes.deletedAt)))
+    .innerJoin(shelves, eq(shelves.id, volumes.shelfId))
+    .innerJoin(sections, eq(sections.id, shelves.sectionId))
+    .innerJoin(bookcases, eq(bookcases.id, sections.bookcaseId))
+    .innerJoin(rooms, eq(rooms.id, bookcases.roomId))
+    .where(and(eq(copies.bookId, bookId), isNull(copies.deletedAt)))
+    .groupBy(copies.id, shelves.id)
+    .orderBy(asc(copies.createdAt), sql`min(${volumes.volumeNumber})`);
 }

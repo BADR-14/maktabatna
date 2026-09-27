@@ -2,21 +2,23 @@ import { formatArabicNumber, toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BookLoader } from '@/components/book-loader';
 import { AppText } from '@/components/text';
-import { roomBookcasesQuery, roomQuery, shelvesQuery } from '@/db/queries';
-import type { Opening, RoomLayout } from '@/three/room-scene';
+import { roomBookcasesQuery, roomQuery, roomVolumesQuery, shelvesQuery } from '@/db/queries';
+import type { BookOnShelf, Opening, RoomLayout } from '@/three/room-scene';
 import { RoomView } from '@/three/room-view';
 import { radius, space, useColors } from '@/theme';
 
 export default function RoomScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
-  const c = useColors();
+  // `bookcase` / `shelf` come from search and book pages: open straight on that spot.
+  const { id, name, bookcase, shelf } = useLocalSearchParams<{ id: string; name?: string; bookcase?: string; shelf?: string }>();
   const { data: room } = useLiveQuery(roomQuery(id), [id]);
   const { data: bookcases } = useLiveQuery(roomBookcasesQuery(id), [id]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { data: vols } = useLiveQuery(roomVolumesQuery(id), [id]);
+  const [selectedId, setSelectedId] = useState<string | null>(bookcase ?? null);
 
   const r = room?.[0];
   // Built once when the data first arrives; the 3D scene doesn't need to rebuild on every book added.
@@ -27,10 +29,15 @@ export default function RoomScreen() {
       depthCm: r.depthCm,
       heightCm: r.heightCm,
       openings: JSON.parse(r.openings) as Opening[],
-      bookcases: bookcases.map((b) => ({ ...b, shelfCount: Number(b.shelfCount) })),
+      bookcases: bookcases.map((b) => ({
+        ...b,
+        shelfCount: Number(b.shelfCount),
+        books: (vols ?? []).filter((v) => v.bookcaseId === b.id) as BookOnShelf[],
+      })),
     };
+    // Rebuild only when the room or the number of books changes, not on every re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [r?.id, bookcases?.length]);
+  }, [r?.id, bookcases?.length, vols?.length]);
 
   const selected = bookcases?.find((b) => b.id === selectedId) ?? null;
 
@@ -38,10 +45,10 @@ export default function RoomScreen() {
     <View style={{ flex: 1, backgroundColor: '#1b1314' }}>
       <Stack.Screen options={{ title: r?.name ?? name ?? '' }} />
       {layout ? (
-        <RoomView layout={layout} selectedId={selectedId} onSelect={setSelectedId} />
+        <RoomView key={layout.bookcases.reduce((n, b) => n + (b.books?.length ?? 0), 0)} layout={layout} selectedId={selectedId} onSelect={setSelectedId} />
       ) : (
         <View style={styles.center}>
-          <ActivityIndicator color={c.accent} />
+          <BookLoader label="عم تتحضّر الغرفة" />
         </View>
       )}
       {!selected ? (
@@ -49,7 +56,7 @@ export default function RoomScreen() {
           <AppText style={{ color: '#F2E6E4', fontSize: 13 }}>اكبس على أي مكتبة · اسحب لتلف · قرّب بإصبعين</AppText>
         </View>
       ) : (
-        <BookcaseSheet bookcase={selected} onClose={() => setSelectedId(null)} />
+        <BookcaseSheet bookcase={selected} highlightShelf={shelf} onClose={() => setSelectedId(null)} />
       )}
     </View>
   );
@@ -57,7 +64,7 @@ export default function RoomScreen() {
 
 type BookcaseRow = { id: string; number: number; name: string; kind: 'open' | 'glass'; wall: string | null; volumeCount: number };
 
-function BookcaseSheet({ bookcase, onClose }: { bookcase: BookcaseRow; onClose: () => void }) {
+function BookcaseSheet({ bookcase, highlightShelf, onClose }: { bookcase: BookcaseRow; highlightShelf?: string; onClose: () => void }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { data: shelves } = useLiveQuery(shelvesQuery(bookcase.id), [bookcase.id]);
@@ -94,7 +101,11 @@ function BookcaseSheet({ bookcase, onClose }: { bookcase: BookcaseRow; onClose: 
             <Pressable
               style={({ pressed }) => [
                 styles.shelfChip,
-                { backgroundColor: s.kind === 'top' ? c.tint : c.background, borderColor: c.line, opacity: pressed ? 0.7 : 1 },
+                {
+                  backgroundColor: s.id === highlightShelf ? c.accent : s.kind === 'top' ? c.tint : c.background,
+                  borderColor: s.id === highlightShelf ? c.accent : c.line,
+                  opacity: pressed ? 0.7 : 1,
+                },
               ]}>
               <AppText variant="label" style={{ fontSize: 14 }}>
                 {s.kind === 'top' ? 'فوق المكتبة' : `الرف ${toArabicDigits(s.number)}`}

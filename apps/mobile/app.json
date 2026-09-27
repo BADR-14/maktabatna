@@ -8,7 +8,7 @@
     "scheme": "maktabatna",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -31,7 +31,7 @@
         {
           "backgroundColor": "#7A2230",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 220
         }
       ],
       [

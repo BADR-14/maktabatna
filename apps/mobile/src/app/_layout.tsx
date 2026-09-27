@@ -4,12 +4,13 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import Storage from 'expo-sqlite/kv-store';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DevSettings, I18nManager, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import migrations from '../../drizzle/migrations';
 import { SessionProvider, useSession } from '@/auth/session';
+import { Intro } from '@/components/intro';
 import { db } from '@/db/client';
 import { fonts, useColors } from '@/theme';
 
@@ -38,6 +39,8 @@ export default function RootLayout() {
   });
   const { success: migrated, error: migrationError } = useMigrations(db, migrations);
   const ready = (fontsLoaded && migrated) || !!migrationError;
+  const [intro, setIntro] = useState(true);
+  const endIntro = useCallback(() => setIntro(false), []);
 
   useEffect(() => {
     if (migrationError) SplashScreen.hideAsync();
@@ -60,6 +63,7 @@ export default function RootLayout() {
       <SessionProvider>
         <StatusBar style="light" />
         <RootStack />
+        {intro ? <Intro onDone={endIntro} /> : null}
       </SessionProvider>
     </GestureHandlerRootView>
   );
@@ -91,6 +95,8 @@ function RootStack() {
         <Stack.Screen name="index" options={{ title: 'مكتبتنا' }} />
         <Stack.Screen name="room/[id]" options={{ title: '' }} />
         <Stack.Screen name="shelf/[id]" options={{ title: '' }} />
+        <Stack.Screen name="book/[id]" options={{ title: '' }} />
+        <Stack.Screen name="category/[id]" options={{ title: '' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" options={{ headerShown: false }} />

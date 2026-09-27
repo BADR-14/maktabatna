@@ -31,6 +31,11 @@ export function RoomView({
   const size = useRef({ w: 1, h: 1 });
   const engine = useRef<{ rs: RoomScene; rig: CameraRig } | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
+  // Latest selection, for when the GL context arrives after the screen opened on a bookcase.
+  const selectedRef = useRef(selectedId);
+  useEffect(() => {
+    selectedRef.current = selectedId;
+  }, [selectedId]);
   const [labels, setLabels] = useState<Label[]>([]);
   const [labelsVisible, setLabelsVisible] = useState(true);
   const numbers = useRef(new Map(layout.bookcases.map((b) => [b.id, b.number])));
@@ -83,6 +88,10 @@ export function RoomView({
         wasMoving = rig.moving;
       };
       engine.current = { rs, rig };
+      if (selectedRef.current) {
+        rs.setSelected(selectedRef.current);
+        rig.goFocus(selectedRef.current);
+      }
       frame();
       refreshLabels();
       cleanup.current = () => {

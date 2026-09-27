@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- مكتبتنا emblem: an open book under an eight-pointed star, gold on transparent.
+       Drawn on a 1024 grid centred for app icons; see logo.html for the full compositions. -->
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EBCB8F"/>
+      <stop offset="1" stop-color="#C39A52"/>
+    </linearGradient>
+    <linearGradient id="goldDeep" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#B98D45"/>
+      <stop offset="0.5" stop-color="#D6AE63"/>
+      <stop offset="1" stop-color="#B98D45"/>
+    </linearGradient>
+  </defs>
+  <!-- star: two overlapping squares -->
+  <g transform="translate(512 300)" fill="url(#gold)">
+    <rect x="-62" y="-62" width="124" height="124" rx="6"/>
+    <rect x="-62" y="-62" width="124" height="124" rx="6" transform="rotate(45)"/>
+    <circle r="30" fill="#7A2230"/>
+    <circle r="14" fill="url(#gold)"/>
+  </g>
+  <!-- book: two pages curving up from the spine, with a page stack under each -->
+  <g>
+    <path d="M512 470 C 440 432 330 418 206 438 L 206 700 C 330 682 440 694 512 736 Z" fill="url(#gold)"/>
+    <path d="M512 470 C 584 432 694 418 818 438 L 818 700 C 694 682 584 694 512 736 Z" fill="url(#gold)"/>
+    <path d="M206 700 C 330 682 440 694 512 736 C 584 694 694 682 818 700 L 818 722 C 694 706 584 718 512 760 C 440 718 330 706 206 722 Z" fill="url(#goldDeep)"/>
+    <path d="M512 474 L 512 736" stroke="#7A2230" stroke-width="10" stroke-linecap="round"/>
+    <g fill="none" stroke="#7A2230" stroke-width="9" stroke-linecap="round" opacity="0.55">
+      <path d="M262 500 C 340 488 410 494 466 516"/>
+      <path d="M262 556 C 340 544 410 550 466 572"/>
+      <path d="M262 612 C 340 600 410 606 466 628"/>
+      <path d="M762 500 C 684 488 614 494 558 516"/>
+      <path d="M762 556 C 684 544 614 550 558 572"/>
+      <path d="M762 612 C 684 600 614 606 558 628"/>
+    </g>
+  </g>
+</svg>

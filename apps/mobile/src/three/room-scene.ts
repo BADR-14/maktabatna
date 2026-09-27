@@ -30,7 +30,11 @@ export type BookcaseLayout = {
   heightCm: number | null;
   depthCm: number | null;
   shelfCount: number;
+  /** Volumes on this bookcase, each shelf's list ordered from the right. shelfNumber 0 = on top. */
+  books?: BookOnShelf[];
 };
+
+export type BookOnShelf = { shelfNumber: number; bookId: string; placement: 'standing' | 'lying' | 'on_top' };
 
 export type RoomLayout = {
   widthCm: number | null;
@@ -192,6 +196,9 @@ export function buildRoomScene(layout: RoomLayout): RoomScene {
 
   const pickables: THREE.Object3D[] = [];
   const focus = new Map<string, BookcaseFocus>();
+  // Every book in the room goes into ONE instanced mesh: a single draw call however many books.
+  const bookMatrices: THREE.Matrix4[] = [];
+  const bookColors: THREE.Color[] = [];
   const highlights = new Map<string, THREE.LineSegments>();
   const edges = new THREE.EdgesGeometry(box);
   geometries.push(edges);
@@ -247,6 +254,45 @@ export function buildRoomScene(layout: RoomLayout): RoomScene {
       addBox(g, frame, W / 2 - 0.01, f, D + 0.012, 0.014, H - 2 * f, 0.012);
     }
 
+    // Books: simple coloured blocks, placed shelf by shelf from the right.
+    if (b.books?.length) {
+      g.updateMatrixWorld(true);
+      const pitch = inner / n + T; // one compartment plus its board
+      const byShelf = new Map<number, BookOnShelf[]>();
+      for (const v of b.books) byShelf.set(v.shelfNumber, [...(byShelf.get(v.shelfNumber) ?? []), v]);
+      const place = (x: number, y: number, z: number, w: number, h: number, d: number, bookId: string, i: number) => {
+        const local = new THREE.Matrix4().compose(new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), new THREE.Quaternion(), new THREE.Vector3(w, h, d));
+        bookMatrices.push(new THREE.Matrix4().multiplyMatrices(g.matrixWorld, local));
+        // Alternate the shade a touch so each volume of a set reads as its own spine.
+        bookColors.push(spineColor(bookId).offsetHSL(0, 0, i % 2 ? -0.035 : 0.02));
+      };
+      for (const [shelfNumber, vols] of byShelf) {
+        const onTop = shelfNumber === 0;
+        const floorY = onTop ? H : T + (n - shelfNumber) * pitch;
+        const maxH = onTop ? 0.3 : inner / n - 0.015;
+        const standing = vols.filter((v) => v.placement !== 'lying');
+        const lying = vols.filter((v) => v.placement === 'lying');
+        const avail = W - 2 * T - 0.02 - (lying.length ? 0.24 : 0);
+        const widths = standing.map((v) => 0.026 + hash01(v.bookId, 1) * 0.016);
+        const total = widths.reduce((a, w) => a + w + 0.0025, 0);
+        const k = total > avail ? avail / total : 1;
+        let x = W - T - 0.006;
+        standing.forEach((v, i) => {
+          const w = widths[i] * k;
+          const h = Math.min(maxH, 0.21 + hash01(v.bookId, 2) * 0.08);
+          const d = Math.min(D - 0.04, 0.21);
+          x -= w;
+          place(x, floorY, D - 0.02 - d, w, h, d, v.bookId, i);
+          x -= 0.0025 * k;
+        });
+        let y = floorY;
+        for (const [i, v] of lying.entries()) {
+          place(T + 0.01, y, D - 0.24, 0.22, 0.035, 0.17, v.bookId, i);
+          y += 0.036;
+        }
+      }
+    }
+
     // Tap target and selection outline.
     const pick = addBox(g, pickMat, 0, 0, 0, W, H, D + 0.03);
     pick.userData.bookcaseId = b.id;
@@ -264,6 +310,18 @@ export function buildRoomScene(layout: RoomLayout): RoomScene {
     focus.set(b.id, { center, normal: tr.normal.clone(), width: W, height: H, labelAnchor });
   }
 
+  if (bookMatrices.length) {
+    const bookMat = mat(0xffffff);
+    const books = new THREE.InstancedMesh(box, bookMat, bookMatrices.length);
+    bookMatrices.forEach((m, i) => {
+      books.setMatrixAt(i, m);
+      books.setColorAt(i, bookColors[i]);
+    });
+    books.instanceMatrix.needsUpdate = true;
+    if (books.instanceColor) books.instanceColor.needsUpdate = true;
+    scene.add(books);
+  }
+
   return {
     scene,
     room,
@@ -277,4 +335,18 @@ export function buildRoomScene(layout: RoomLayout): RoomScene {
       materials.forEach((m) => m.dispose());
     },
   };
+}
+
+// Deep binding colours seen on the family's shelves.
+const SPINES = [0x1d2742, 0x5b1d1f, 0x1f3b2c, 0x3b2419, 0x8c2a24, 0x2a4f8a, 0x6a1f2d, 0x23201e, 0x4a3322, 0x2f6a3d, 0xa9864f, 0xd9ccb0];
+
+/** Stable 0..1 number from a book id, so a set's volumes share a colour and height. */
+function hash01(id: string, salt: number): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+export function spineColor(bookId: string): THREE.Color {
+  return new THREE.Color(SPINES[Math.floor(hash01(bookId, 3) * SPINES.length)]);
 }
