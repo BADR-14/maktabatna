@@ -4,6 +4,9 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
 COPY packages/shared/package.json packages/shared/
+# The server's postinstall runs `prisma generate`, so the schema must be there before npm ci.
+COPY apps/server/prisma apps/server/prisma
+COPY apps/server/prisma.config.ts apps/server/
 RUN npm ci --workspace @maktabatna/server --include-workspace-root=false
 COPY apps/server apps/server
 RUN cd apps/server && npx prisma generate && npx nest build
