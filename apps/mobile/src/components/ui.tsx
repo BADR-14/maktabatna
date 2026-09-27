@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
+import { useRevealFocused } from '@/components/auth-shell';
 import { BookLoader } from '@/components/book-loader';
 
 import { AppText } from '@/components/text';
@@ -45,8 +46,9 @@ export function Button({
 export const Field = forwardRef<
   TextInput,
   TextInputProps & { label: string; hint?: string; /** Password field with a show/hide button. */ reveal?: { shown: boolean; onToggle: () => void } }
->(function Field({ label, hint, reveal, style, ...props }, ref) {
+>(function Field({ label, hint, reveal, style, onFocus, ...props }, ref) {
   const c = useColors();
+  const revealFocused = useRevealFocused();
   return (
     <View style={styles.field}>
       <AppText variant="label" style={{ fontSize: 14 }}>
@@ -57,6 +59,10 @@ export const Field = forwardRef<
           ref={ref}
           placeholderTextColor={c.textMuted}
           {...props}
+          onFocus={(e) => {
+            onFocus?.(e);
+            revealFocused();
+          }}
           secureTextEntry={reveal ? !reveal.shown : props.secureTextEntry}
           style={[styles.input, { color: c.text }, style]}
         />

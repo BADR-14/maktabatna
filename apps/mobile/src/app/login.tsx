@@ -7,7 +7,7 @@ import { AuthShell } from '@/components/auth-shell';
 import { Owl, useOwl } from '@/components/owl';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
-import { getServerUrl, setServerUrl } from '@/lib/api';
+import { api, getServerUrl, setServerUrl } from '@/lib/api';
 import { space, useColors } from '@/theme';
 
 export default function Login() {
@@ -19,6 +19,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [showServer, setShowServer] = useState(false);
   const [server, setServer] = useState('');
+  const [check, setCheck] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
   const owl = useOwl();
   const userOwl = owl.text(username);
@@ -98,6 +99,25 @@ export default function Login() {
           hint="بيتعبّى لحاله. غيّره بس إذا ما قدر يوصل."
         />
       ) : null}
+      {showServer ? (
+        <Pressable
+          hitSlop={8}
+          onPress={async () => {
+            setCheck('عم جرّب…');
+            await setServerUrl(server);
+            try {
+              await api('/health');
+              setCheck('✓ السيرفر واصل وشغّال');
+            } catch (e) {
+              setCheck(e instanceof Error ? e.message : String(e));
+            }
+          }}>
+          <AppText variant="label" style={{ color: c.accentText, textAlign: 'center' }}>
+            جرّب الاتصال
+          </AppText>
+        </Pressable>
+      ) : null}
+      {showServer && check ? <AppText variant="muted" style={{ textAlign: 'center' }}>{check}</AppText> : null}
     </AuthShell>
   );
 }
