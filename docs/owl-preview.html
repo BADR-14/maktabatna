@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Static mirror of apps/mobile/src/components/owl.tsx (same sizes and angles) to check the four poses in a browser. -->
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<title>البومة: الوضعيات</title>
+<style>
+  body { margin: 0; background: #7A2230; font-family: sans-serif; display: flex; gap: 28px; padding: 28px; justify-content: center; }
+  .pose { display: flex; flex-direction: column; align-items: center; gap: 10px; color: #FBEEE6; font-size: 18px; }
+  .owl { position: relative; width: 134px; height: 140px; }
+  .owl * { position: absolute; box-sizing: border-box; }
+  .body { left: 13px; top: 16px; width: 108px; height: 120px; background: #7B5236; border-radius: 54px 54px 50px 50px; }
+  .tuft { top: 4px; width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-bottom: 26px solid #7B5236; }
+  .belly { left: 34px; top: 80px; width: 66px; height: 54px; background: #DCC59C; border-radius: 33px 33px 28px 28px; }
+  .chev { width: 9px; height: 5px; border-bottom: 2px solid #A9855C; border-radius: 0 0 5px 5px; }
+  .disc { top: 28px; width: 54px; height: 54px; border-radius: 27px; background: #E6D2AC; border: 2px solid #C9A878; }
+  .eye { top: 37px; width: 36px; height: 36px; border-radius: 18px; background: #E8A33A; border: 2px solid #3B2418; overflow: hidden; }
+  .pupil { left: 8px; top: 8px; width: 17px; height: 17px; border-radius: 9px; background: #141010; }
+  .glint { left: 9px; top: 3px; width: 5px; height: 5px; border-radius: 3px; background: #fff; }
+  .beak { left: 60px; top: 70px; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 14px solid #C9A15A; }
+  .talon { top: 132px; width: 6px; height: 9px; border-radius: 0 0 3px 3px; background: #C9A15A; }
+  .wing { top: 64px; width: 30px; height: 64px; background: #5E3B25; border: 1px solid #4A2D1C; border-radius: 15px 15px 22px 22px; transform-origin: 50% 10%; }
+  .books { display: flex; flex-direction: column; align-items: flex-start; margin-top: -8px; }
+  .book { height: 14px; border-radius: 3px; margin-top: 2px; }
+</style>
+</head>
+<body>
+<script>
+  const poses = [
+    ['ساكتة', 0.5, 8, 8],
+    ['عم تتطلع (كتابة)', 0.1, 8, 8],
+    ['مغمضة (كلمة السر)', 0.5, 118, 118],
+    ['عم تسترق النظرة', 0.5, 118, 80],
+  ];
+  for (const [label, gaze, l, r] of poses) {
+    const px = (gaze - 0.5) * 10, py = Math.abs(gaze - 0.5) * 4, tilt = (gaze - 0.5) * 8;
+    const chevrons = [0, 1, 2].map((row) => [0, 1, 2].map((i) => `<div class="chev" style="left:${14 + i * 17}px;top:${10 + row * 11}px"></div>`).join('')).join('');
+    const eye = (x) => `<div class="eye" style="left:${x}px"><div class="pupil" style="transform:translate(${px}px,${py}px)"><div class="glint"></div></div></div>`;
+    const feet = (x) => [0, 1, 2].map((i) => `<div class="talon" style="left:${x + i * 8}px"></div>`).join('');
+    document.body.insertAdjacentHTML('beforeend', `<div class="pose"><div class="owl" style="transform:rotate(${tilt}deg)">
+      <div class="tuft" style="left:20px;transform:rotate(-20deg)"></div><div class="tuft" style="right:20px;transform:rotate(20deg)"></div>
+      <div class="body"></div><div class="belly">${chevrons}</div>
+      <div class="disc" style="left:14px"></div><div class="disc" style="left:66px"></div>
+      ${eye(23)}${eye(75)}<div class="beak"></div>${feet(38)}${feet(74)}
+      <div class="wing" style="left:6px;transform:rotate(${-l}deg)"></div><div class="wing" style="right:6px;transform:rotate(${r}deg)"></div>
+    </div><div class="books"><div class="book" style="background:#1F3B2C;width:150px"></div><div class="book" style="background:#8C2A24;width:138px;margin-left:12px"></div><div class="book" style="background:#1D2742;width:160px;margin-left:-6px"></div></div>
+    <div>${label}</div></div>`);
+  }
+</script>
+</body>
+</html>
