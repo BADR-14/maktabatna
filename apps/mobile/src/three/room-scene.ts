@@ -341,7 +341,7 @@ export function buildRoomScene(layout: RoomLayout): RoomScene {
 const SPINES = [0x1d2742, 0x5b1d1f, 0x1f3b2c, 0x3b2419, 0x8c2a24, 0x2a4f8a, 0x6a1f2d, 0x23201e, 0x4a3322, 0x2f6a3d, 0xa9864f, 0xd9ccb0];
 
 /** Stable 0..1 number from a book id, so a set's volumes share a colour and height. */
-function hash01(id: string, salt: number): number {
+export function hash01(id: string, salt: number): number {
   let h = 2166136261 ^ salt;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
   return ((h >>> 0) % 10000) / 10000;

@@ -10,7 +10,8 @@ import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withDelay,
 import { OwlReader } from '@/components/owl';
 import { fonts } from '@/theme';
 
-const DURATION = 3000;
+// Long enough to watch the owl turn a few pages; a tap still skips it.
+const DURATION = 5500;
 
 export function Intro({ onDone }: { onDone: () => void }) {
   const owl = useSharedValue(0);
@@ -24,8 +25,8 @@ export function Intro({ onDone }: { onDone: () => void }) {
   };
 
   useEffect(() => {
-    owl.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
-    word.value = withDelay(900, withTiming(1, { duration: 550, easing: Easing.out(Easing.cubic) }));
+    owl.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) });
+    word.value = withDelay(1500, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
     finish(DURATION);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

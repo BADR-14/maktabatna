@@ -1,33 +1,30 @@
-import { Link, type Href } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { type Href } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 
+import { BookCover } from '@/components/book-cover';
+import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
 import { radius, space, useColors } from '@/theme';
-import { spineHex } from '@/lib/spine';
 
-/** One book in a list: a coloured spine, the title, and a muted second line. */
+/** One book in a list: a small cover, the title, and a muted second line. */
 export function BookRow({ bookId, title, subtitle, href }: { bookId: string; title: string; subtitle?: string | null; href: Href }) {
   const c = useColors();
   return (
-    <Link href={href} asChild>
-      <Pressable
-        style={({ pressed }) => [styles.row, { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.75 : 1 }]}>
-        <View style={[styles.spine, { backgroundColor: spineHex(bookId) }]}>
-          <View style={[styles.band, { backgroundColor: c.accent }]} />
-          <View style={[styles.band, { backgroundColor: c.accent, marginTop: 'auto' }]} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText variant="label" numberOfLines={1}>
-            {title}
+    <PressLink href={href} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? c.tint : c.surface, borderColor: c.line }]}>
+      <BookCover bookId={bookId} title={title} width={40} />
+      <View style={{ flex: 1 }}>
+        <AppText variant="label" numberOfLines={1}>
+          {title}
+        </AppText>
+        {subtitle ? (
+          <AppText variant="muted" numberOfLines={1}>
+            {subtitle}
           </AppText>
-          {subtitle ? (
-            <AppText variant="muted" numberOfLines={1}>
-              {subtitle}
-            </AppText>
-          ) : null}
-        </View>
-      </Pressable>
-    </Link>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-back" size={18} color={c.textMuted} />
+    </PressLink>
   );
 }
 
@@ -36,10 +33,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    padding: space.md,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  spine: { width: 12, height: 40, borderRadius: 3, paddingVertical: 5, paddingHorizontal: 2 },
-  band: { height: 2, borderRadius: 1 },
 });

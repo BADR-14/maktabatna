@@ -1,12 +1,13 @@
 import { PERSON_ROLES, toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
-import { Link, Stack, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BookCover } from '@/components/book-cover';
+import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
 import { DEMO_USER_ID } from '@/db/demo';
 import { bookLocationsQuery, bookPeopleQuery, bookQuery } from '@/db/queries';
-import { spineHex } from '@/lib/spine';
 import { timeAgo } from '@/lib/time';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -39,10 +40,13 @@ export default function BookScreen() {
     <ScrollView contentContainerStyle={styles.page}>
       <Stack.Screen options={{ title: '' }} />
       <View style={styles.head}>
-        <View style={[styles.spine, { backgroundColor: spineHex(book.id) }]}>
-          <View style={[styles.band, { backgroundColor: c.accent }]} />
-          <View style={[styles.band, { backgroundColor: c.accent, marginTop: 'auto' }]} />
-        </View>
+        <BookCover
+          bookId={book.id}
+          title={book.title}
+          author={people?.find((p) => p.role === 'author')?.name}
+          width={118}
+          volumes={book.totalVolumes}
+        />
         <View style={{ flex: 1 }}>
           <AppText style={[styles.title, { color: c.text }]}>{book.title}</AppText>
           {book.createdBy === DEMO_USER_ID ? (
@@ -61,7 +65,15 @@ export default function BookScreen() {
         {facts
           .filter(([, v]) => v)
           .map(([k, v], i) => (
-            <View key={`${k}${i}`} style={[styles.fact, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderColor: c.line }]}>
+            <View
+              key={`${k}${i}`}
+              style={[
+                styles.fact,
+                i > 0 && {
+                  borderTopWidth: StyleSheet.hairlineWidth,
+                  borderColor: c.line,
+                },
+              ]}>
               <AppText variant="muted" style={{ width: 110 }}>
                 {k}
               </AppText>
@@ -82,24 +94,30 @@ export default function BookScreen() {
               : `المجلدات ${toArabicDigits(p.fromVolume)}–${toArabicDigits(p.toVolume ?? 0)}`
             : null;
         return (
-          <Link
+          <PressLink
             key={`${p.copyId}${p.shelfId}`}
-            href={{ pathname: '/room/[id]', params: { id: p.roomId, name: p.roomName, bookcase: p.bookcaseId, shelf: p.shelfId } }}
-            asChild>
-            <Pressable style={({ pressed }) => [styles.place, { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 }]}>
-              <View style={{ flex: 1 }}>
-                <AppText variant="label" style={{ color: c.onPrimary }}>
-                  {p.roomName} · مكتبة {toArabicDigits(p.bookcaseNumber)} · {where}
-                </AppText>
-                <AppText style={{ color: c.onPrimary, opacity: 0.85, fontSize: 13 }}>
-                  {[vols, p.placement === 'lying' ? 'ممدود بين الكتب' : null, p.bookcaseName].filter(Boolean).join(' · ')}
-                </AppText>
-              </View>
-              <AppText variant="label" style={{ color: c.accent }}>
-                ورجيني ←
+            href={{
+              pathname: '/room/[id]',
+              params: {
+                id: p.roomId,
+                name: p.roomName,
+                bookcase: p.bookcaseId,
+                shelf: p.shelfId,
+              },
+            }}
+            style={({ pressed }) => [styles.place, { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 }]}>
+            <View style={{ flex: 1 }}>
+              <AppText variant="label" style={{ color: c.onPrimary }}>
+                {p.roomName} · مكتبة {toArabicDigits(p.bookcaseNumber)} · {where}
               </AppText>
-            </Pressable>
-          </Link>
+              <AppText style={{ color: c.onPrimary, opacity: 0.85, fontSize: 13 }}>
+                {[vols, p.placement === 'lying' ? 'ممدود بين الكتب' : null, p.bookcaseName].filter(Boolean).join(' · ')}
+              </AppText>
+            </View>
+            <AppText variant="label" style={{ color: c.accent }}>
+              ورجيني ←
+            </AppText>
+          </PressLink>
         );
       })}
     </ScrollView>
@@ -108,12 +126,26 @@ export default function BookScreen() {
 
 const styles = StyleSheet.create({
   page: { padding: space.lg, gap: space.lg, paddingBottom: 40 },
-  head: { flexDirection: 'row', gap: space.lg, alignItems: 'center' },
-  spine: { width: 26, height: 96, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 4 },
-  band: { height: 3, borderRadius: 2 },
+  head: { flexDirection: 'row', gap: space.lg, alignItems: 'flex-end' },
   title: { fontFamily: fonts.display, fontSize: 26, lineHeight: 40 },
-  pill: { alignSelf: 'flex-start', paddingHorizontal: space.md, paddingVertical: 2, borderRadius: radius.pill, marginTop: 4 },
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: space.lg },
+  pill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: space.md,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    marginTop: 4,
+  },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+  },
   fact: { flexDirection: 'row', gap: space.md, paddingVertical: space.md },
-  place: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.md },
+  place: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    padding: space.lg,
+    borderRadius: radius.md,
+  },
 });

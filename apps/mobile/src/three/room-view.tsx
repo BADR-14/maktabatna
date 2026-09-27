@@ -48,7 +48,12 @@ export function RoomView({
     for (const [id, f] of e.rs.focus) {
       const p = f.labelAnchor.clone().project(e.rig.camera);
       if (p.z > 1 || p.x < -1.1 || p.x > 1.1 || p.y < -1.1 || p.y > 1.1) continue;
-      next.push({ id, number: numbers.current.get(id) ?? 0, x: ((p.x + 1) / 2) * w, y: ((1 - p.y) / 2) * h });
+      next.push({
+        id,
+        number: numbers.current.get(id) ?? 0,
+        x: ((p.x + 1) / 2) * w,
+        y: ((1 - p.y) / 2) * h,
+      });
     }
     setLabels(next);
     setLabelsVisible(true);
@@ -68,7 +73,22 @@ export function RoomView({
         removeEventListener: () => {},
         getContext: () => gl,
       } as unknown as HTMLCanvasElement;
-      const renderer = new THREE.WebGLRenderer({ canvas, context: gl as unknown as WebGL2RenderingContext, antialias: true });
+      // expo-gl's context is a GLES 3 (WebGL2-capable) context, but it is an instance of the global
+      // WebGLRenderingContext class, which three (r163+) rejects as WebGL 1. Hide that global while
+      // the renderer is created; it's only checked in the constructor.
+      const g = globalThis as { WebGLRenderingContext?: unknown };
+      const glClass = g.WebGLRenderingContext;
+      g.WebGLRenderingContext = undefined;
+      let renderer: THREE.WebGLRenderer;
+      try {
+        renderer = new THREE.WebGLRenderer({
+          canvas,
+          context: gl as unknown as WebGL2RenderingContext,
+          antialias: true,
+        });
+      } finally {
+        g.WebGLRenderingContext = glClass;
+      }
       renderer.setPixelRatio(1);
       renderer.setSize(width, height, false);
       renderer.outputColorSpace = THREE.SRGBColorSpace;

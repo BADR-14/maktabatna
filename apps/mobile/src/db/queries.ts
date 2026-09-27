@@ -107,15 +107,20 @@ export function roomVolumesQuery(roomId: string) {
     .orderBy(asc(bookcases.number), asc(shelves.number), asc(volumes.row), asc(volumes.position));
 }
 
-/** Home numbers: titles, physical volumes, authors, and titles owned more than once. */
+/**
+ * Home numbers: titles, physical volumes, authors, and titles owned more than once. An aggregate
+ * over a real table always yields exactly one row (even when empty), and gives the live query a
+ * table to watch.
+ */
 export const statsQuery = db
   .select({
-    books: sql<number>`(select count(*) from ${books} where deleted_at is null)`,
+    books: count(),
     volumes: sql<number>`(select count(*) from ${volumes} where deleted_at is null)`,
     authors: sql<number>`(select count(distinct person_id) from ${bookPersons} where role = 'author' and deleted_at is null)`,
     duplicates: sql<number>`(select count(*) from (select book_id from ${copies} where deleted_at is null group by book_id having count(*) > 1))`,
   })
-  .from(sql`(select 1)`);
+  .from(books)
+  .where(isNull(books.deletedAt));
 
 export const categoriesWithCountsQuery = db
   .select({
@@ -133,12 +138,19 @@ const authorName = sql<string | null>`(
 )`;
 
 export const recentBooksQuery = db
-  .select({ id: books.id, title: books.title, author: authorName, addedBy: users.displayName, createdAt: books.createdAt })
+  .select({
+    id: books.id,
+    title: books.title,
+    author: authorName,
+    totalVolumes: books.totalVolumes,
+    addedBy: users.displayName,
+    createdAt: books.createdAt,
+  })
   .from(books)
   .leftJoin(users, eq(users.id, books.createdBy))
   .where(isNull(books.deletedAt))
   .orderBy(desc(books.createdAt))
-  .limit(5);
+  .limit(12);
 
 /** Full-text search; `match` is an FTS5 query built with toFtsQuery(). */
 export function searchBooksQuery(match: string) {
