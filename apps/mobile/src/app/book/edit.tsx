@@ -4,7 +4,7 @@
  * done from the book page.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { toArabicDigits, type PersonRole } from '@maktabatna/shared';
+import { parseSpokenBook, toArabicDigits, type PersonRole } from '@maktabatna/shared';
 import { useLiveQuery } from '@/db/live';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ import { useSession } from '@/auth/session';
 import { Chip } from '@/components/book-browser';
 import { FormScroll } from '@/components/form-scroll';
 import { ShelfPicker } from '@/components/shelf-picker';
+import { VOICE_HINT, VoiceSheet } from '@/components/voice';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
 import { createBook, updateBook, type PersonInput, type Placement } from '@/db/mutations';
@@ -31,6 +32,7 @@ type Form = {
   publisher: string;
   edition: string;
   totalVolumes: number;
+  pageCount: string;
   notes: string;
 };
 const EMPTY: Form = {
@@ -44,6 +46,7 @@ const EMPTY: Form = {
   publisher: '',
   edition: '',
   totalVolumes: 1,
+  pageCount: '',
   notes: '',
 };
 const ROLE_FIELD: Record<PersonRole, 'author' | 'editor' | 'commentator' | 'translator'> = {
@@ -84,6 +87,7 @@ export default function BookEditScreen() {
     publisher: book.publisher ?? '',
     edition: book.edition ?? '',
     totalVolumes: book.totalVolumes,
+    pageCount: book.pageCount ? toArabicDigits(book.pageCount) : '',
     notes: book.notes ?? '',
   };
   return <BookForm key={id} bookId={id} initial={initial} initialExtras={extras} startShelf={null} />;
@@ -114,6 +118,33 @@ function BookForm({
   const [busy, setBusy] = useState(false);
 
   const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const [listening, setListening] = useState(false);
+  const [voiceNote, setVoiceNote] = useState<string | null>(null);
+
+  // Fill only what was said; everything else stays as it was.
+  function applySpoken(text: string) {
+    setListening(false);
+    const b = parseSpokenBook(text, cats.map((x) => x.name));
+    const cat = b.categoryMatched ? cats.find((x) => x.name === b.category)?.id : undefined;
+    setForm((f) => ({
+      ...f,
+      title: b.title || f.title,
+      author: b.author || f.author,
+      authorDeath: b.authorDeath ? toArabicDigits(b.authorDeath) : f.authorDeath,
+      editor: b.editor || f.editor,
+      publisher: b.publisher || f.publisher,
+      edition: b.edition || f.edition,
+      totalVolumes: b.totalVolumes ?? f.totalVolumes,
+      pageCount: b.pageCount ? toArabicDigits(b.pageCount) : f.pageCount,
+      notes: b.notes || f.notes,
+      categoryId: cat ?? f.categoryId,
+    }));
+    setVoiceNote(
+      b.category && !b.categoryMatched
+        ? `عُبّئت الخانات من كلامك. لم أتعرّف على التصنيف «${b.category}»، فاختره يدوياً.`
+        : 'عُبّئت الخانات من كلامك. راجعها قبل الحفظ.',
+    );
+  }
 
   function save() {
     if (!user) return;
@@ -131,6 +162,7 @@ function BookForm({
       publisher: form.publisher,
       edition: form.edition,
       totalVolumes: form.totalVolumes,
+      pageCount: parseDigits(form.pageCount) || null,
       notes: form.notes,
       people: [...main, ...extras],
     };
@@ -152,6 +184,25 @@ function BookForm({
     <>
       <Stack.Screen options={{ title: editing ? 'تعديل الكتاب' : 'إضافة كتاب' }} />
       <FormScroll style={{ backgroundColor: c.background }} contentStyle={styles.page}>
+        {VoiceSheet ? (
+          <Pressable
+            onPress={() => setListening(true)}
+            style={({ pressed }) => [styles.voice, { backgroundColor: c.primary, opacity: pressed ? 0.85 : 1 }]}>
+            <Ionicons name="mic" size={22} color={c.onPrimary} />
+            <View style={{ flex: 1 }}>
+              <AppText variant="label" style={{ color: c.onPrimary }}>
+                أدخل الكتاب بالصوت
+              </AppText>
+              <AppText style={{ color: c.onPrimary, opacity: 0.85, fontSize: 12 }}>{VOICE_HINT}</AppText>
+            </View>
+          </Pressable>
+        ) : null}
+        {voiceNote ? (
+          <View style={[styles.voiceNote, { backgroundColor: c.tint }]}>
+            <AppText style={{ color: c.tintText, fontSize: 13 }}>{voiceNote}</AppText>
+          </View>
+        ) : null}
+        {VoiceSheet ? <VoiceSheet visible={listening} onClose={() => setListening(false)} onDone={applySpoken} hint={VOICE_HINT} /> : null}
         <Card title="بيانات الكتاب">
           <Field label="العنوان *" value={form.title} onChangeText={set('title')} placeholder="مثال: رياض الصالحين" />
           <View style={styles.pair}>
@@ -206,12 +257,19 @@ function BookForm({
               <AppText variant="muted">المجلدات الزائدة ستنتقل إلى سلة المحذوفات.</AppText>
             ) : null}
           </View>
+          <Field
+            label="عدد الصفحات (اختياري)"
+            value={form.pageCount}
+            onChangeText={set('pageCount')}
+            keyboardType="number-pad"
+            hint={form.totalVolumes > 1 ? 'لمجلد واحد تقريباً؛ يفيد في حساب تقدّم القراءة.' : 'يفيد في حساب تقدّم القراءة.'}
+          />
           <Field label="ملاحظات" value={form.notes} onChangeText={set('notes')} multiline style={{ minHeight: 80, textAlignVertical: 'top', paddingTop: 12 }} />
         </Card>
 
         {editing ? null : (
           <Card title="المكان">
-            <ShelfPicker value={shelfId} onChange={setShelfId} />
+            <ShelfPicker value={shelfId} onChange={setShelfId} allowScan />
             <View style={{ gap: 6 }}>
               <AppText variant="muted">الوضعية</AppText>
               <View style={styles.wrap}>
@@ -253,6 +311,8 @@ function StepBtn({ icon, onPress }: { icon: 'add' | 'remove'; onPress: () => voi
 
 const styles = StyleSheet.create({
   page: { padding: space.lg, gap: space.lg },
+  voice: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.md + 4 },
+  voiceNote: { padding: space.md, borderRadius: radius.md },
   card: { borderRadius: radius.md + 4, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.md },
   cardTitle: { fontFamily: fonts.display, fontSize: 19, lineHeight: 30 },
   pair: { flexDirection: 'row', gap: space.sm },

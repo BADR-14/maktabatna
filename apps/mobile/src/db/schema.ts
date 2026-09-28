@@ -125,6 +125,8 @@ export const books = sqliteTable(
     /** Free text as printed, e.g. "الأولى 1421هـ". */
     edition: text('edition'),
     totalVolumes: integer('total_volumes').notNull().default(1),
+    /** Pages of the title (of one volume for a set is not tracked); lets reading progress go page ↔ percent. */
+    pageCount: integer('page_count'),
     notes: text('notes'),
   },
   (t) => [index('books_title_norm_idx').on(t.titleNorm), index('books_category_idx').on(t.categoryId)],
@@ -184,6 +186,80 @@ export const loans = sqliteTable(
   },
   (t) => [index('loans_copy_idx').on(t.copyId)],
 );
+
+/** Someone reading a title: progress, and at the end a rating and a note. One row per read-through. */
+export const readings = sqliteTable(
+  'readings',
+  {
+    ...common,
+    userId: text('user_id').notNull(),
+    bookId: text('book_id').notNull().references(() => books.id),
+    status: text('status', { enum: ['reading', 'finished', 'partial', 'abandoned'] }).notNull().default('reading'),
+    startedAt: integer('started_at').notNull(),
+    finishedAt: integer('finished_at'),
+    /** Current page; kept in step with `percent` when the book has a page count. */
+    page: integer('page'),
+    percent: real('percent').notNull().default(0),
+    /** For sets: how many volumes are done. */
+    volumesDone: integer('volumes_done'),
+    /** 1–5 stars, optional. */
+    rating: integer('rating'),
+    note: text('note'),
+  },
+  (t) => [index('readings_user_idx').on(t.userId), index('readings_book_idx').on(t.bookId)],
+);
+
+/** Each progress update, for streaks, daily goals and pages read per month. Append-only. */
+export const readingLogs = sqliteTable(
+  'reading_logs',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    readingId: text('reading_id').notNull(),
+    bookId: text('book_id').notNull(),
+    at: integer('at').notNull(),
+    /** Local calendar day, YYYY-MM-DD. */
+    day: text('day').notNull(),
+    /** Pages read in this update (0 when progress is by percent only). */
+    pages: integer('pages').notNull().default(0),
+    percent: real('percent').notNull(),
+  },
+  (t) => [index('reading_logs_user_idx').on(t.userId, t.day)],
+);
+
+/** Per-person preferences that sync. The row id is the user id. */
+export const userSettings = sqliteTable('user_settings', {
+  ...common,
+  /** Show my reading to the family (lists, board). */
+  readingPublic: integer('reading_public', { mode: 'boolean' }).notNull().default(true),
+  dailyPagesGoal: integer('daily_pages_goal'),
+  monthlyBooksGoal: integer('monthly_books_goal'),
+  /** "HH:MM" for the daily reading reminder, or null for none. */
+  reminderTime: text('reminder_time'),
+});
+
+/** Family challenges, set by the parents (admins). */
+export const challenges = sqliteTable('challenges', {
+  ...common,
+  title: text('title').notNull(),
+  description: text('description'),
+  /** books: finish N titles; pages: read N pages; category: finish N titles from one category. */
+  kind: text('kind', { enum: ['books', 'pages', 'category'] }).notNull(),
+  target: integer('target').notNull(),
+  categoryId: text('category_id'),
+  startsAt: integer('starts_at').notNull(),
+  endsAt: integer('ends_at').notNull(),
+  reward: text('reward'),
+});
+
+/** Points and badge rewards, set by the parents. A single row (MOTIVATION_ID). */
+export const motivation = sqliteTable('motivation', {
+  ...common,
+  pointsPerPage: integer('points_per_page').notNull().default(1),
+  pointsPerBook: integer('points_per_book').notNull().default(50),
+  /** JSON { badgeKey: "reward text" }. */
+  badgeRewards: text('badge_rewards').notNull().default('{}'),
+});
 
 /** Edit history: who changed what, and the old value, so any overwritten edit can be restored. */
 export const changeLog = sqliteTable(

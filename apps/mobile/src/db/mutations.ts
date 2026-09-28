@@ -21,12 +21,14 @@ export type BookInput = {
   publisher: string | null;
   edition: string | null;
   totalVolumes: number;
+  /** Optional; lets reading progress move between pages and percent. */
+  pageCount?: number | null;
   notes: string | null;
   people: PersonInput[];
 };
 export type Placement = 'standing' | 'lying' | 'on_top';
 
-const BOOK_FIELDS = ['title', 'categoryId', 'publisher', 'edition', 'totalVolumes', 'notes'] as const;
+const BOOK_FIELDS = ['title', 'categoryId', 'publisher', 'edition', 'totalVolumes', 'pageCount', 'notes'] as const;
 
 /** Internal helpers, also used by catalog-io.ts. */
 export function created(userId: string, now: number, fields: string[]) {
@@ -151,6 +153,7 @@ function clean(input: BookInput) {
     publisher: t(input.publisher),
     edition: t(input.edition),
     totalVolumes: Math.max(1, Math.floor(input.totalVolumes || 1)),
+    pageCount: input.pageCount && input.pageCount > 0 ? Math.floor(input.pageCount) : null,
     notes: t(input.notes),
   };
 }
@@ -354,10 +357,12 @@ export function restoreBookField(bookId: string, field: BookField, value: string
     publisher: book.publisher,
     edition: book.edition,
     totalVolumes: book.totalVolumes,
+    pageCount: book.pageCount,
     notes: book.notes,
     people,
   };
   if (field === 'totalVolumes') input.totalVolumes = Number(value) || 1;
+  else if (field === 'pageCount') input.pageCount = value ? Number(value) : null;
   else if (field === 'title') input.title = value ?? book.title;
   else input[field] = value;
   updateBook(bookId, input, userId);

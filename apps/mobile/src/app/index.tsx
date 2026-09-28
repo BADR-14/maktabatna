@@ -10,6 +10,7 @@ import { useSession } from '@/auth/session';
 import { Avatar } from '@/components/avatar';
 import { BookCover } from '@/components/book-cover';
 import { AddBookFab } from '@/components/fab';
+import { HomeReading } from '@/components/home-reading';
 import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
 import { deleteDemoData, demoCountQuery } from '@/db/demo';
@@ -66,6 +67,13 @@ export default function Home() {
                 {user?.displayName}
               </AppText>
             </View>
+            <PressLink
+              href={{ pathname: '/scan' }}
+              hitSlop={8}
+              accessibilityLabel="مسح رمز رف"
+              style={({ pressed }) => [styles.iconBtn, { backgroundColor: pressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.12)' }]}>
+              <Ionicons name="qr-code-outline" size={21} color={c.onPrimary} />
+            </PressLink>
             <Pressable
               onPress={confirmSignOut}
               hitSlop={8}
@@ -131,6 +139,9 @@ export default function Home() {
                   <RoomCard key={room.id} room={room} tone={i} c={c} />
                 ))}
               </View>
+
+              <Section title="القراءة" />
+              {user ? <HomeReading userId={user.id} /> : null}
 
               {/* 5. Categories */}
               <Section title="التصنيفات" />

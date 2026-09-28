@@ -22,6 +22,7 @@ const FIELD_LABELS: Record<string, string> = {
   publisher: 'دار النشر',
   edition: 'الطبعة',
   totalVolumes: 'عدد المجلدات',
+  pageCount: 'عدد الصفحات',
   notes: 'الملاحظات',
 };
 
@@ -41,7 +42,7 @@ export default function HistoryScreen() {
   const show = (field: string, v: string | null) => {
     if (v === null || v === '') return 'فارغ';
     if (field === 'categoryId') return catName(v) ?? '—';
-    if (field === 'totalVolumes') return toArabicDigits(v);
+    if (field === 'totalVolumes' || field === 'pageCount') return toArabicDigits(v);
     return v;
   };
 

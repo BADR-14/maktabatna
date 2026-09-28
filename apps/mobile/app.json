@@ -21,7 +21,8 @@
       "package": "com.badr.maktabatna",
       "versionCode": 2,
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -60,8 +61,27 @@
         "expo-image-picker",
         {
           "photosPermission": "يحتاج التطبيق إلى الوصول إلى الصور لاختيار صورة الملف الشخصي.",
-          "cameraPermission": "يحتاج التطبيق إلى الكاميرا لالتقاط صورة الملف الشخصي.",
-          "microphonePermission": false
+          "cameraPermission": "يحتاج التطبيق إلى الكاميرا لالتقاط صورة الملف الشخصي."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "يحتاج التطبيق إلى المايكروفون لإدخال الكتب بالصوت.",
+          "speechRecognitionPermission": "يحتاج التطبيق إلى التعرّف على الكلام لإدخال الكتب بالصوت."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "يحتاج التطبيق إلى الكاميرا لمسح رموز الرفوف والتقاط الصور.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#7A2230"
         }
       ],
       "./plugins/with-release-signing.js"

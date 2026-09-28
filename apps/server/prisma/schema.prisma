@@ -231,9 +231,11 @@ model Book {
   publisher    String?
   edition      String?
   totalVolumes Int          @default(1) @map("total_volumes")
+  pageCount    Int?         @map("page_count")
   notes        String?
   persons      BookPerson[]
   copies       Copy[]
+  readings     Reading[]
 
   @@index([titleNorm])
   @@index([categoryId])
@@ -374,4 +376,108 @@ model ChangeLog {
   @@index([changedAt])
   @@index([syncSeq])
   @@map("change_log")
+}
+
+/// Someone reading a title (phones write only their own rows; the sync service checks user_id).
+model Reading {
+  id          String  @id @db.Uuid
+  createdAt   BigInt  @map("created_at")
+  updatedAt   BigInt  @map("updated_at")
+  deletedAt   BigInt? @map("deleted_at")
+  createdBy   String? @map("created_by") @db.Uuid
+  updatedBy   String? @map("updated_by") @db.Uuid
+  fieldClock  Json    @default("{}") @map("field_clock")
+  syncSeq     BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
+  userId      String  @map("user_id") @db.Uuid
+  bookId      String  @map("book_id") @db.Uuid
+  book        Book    @relation(fields: [bookId], references: [id])
+  status      String  @default("reading")
+  startedAt   BigInt  @map("started_at")
+  finishedAt  BigInt? @map("finished_at")
+  page        Int?
+  percent     Float   @default(0)
+  volumesDone Int?    @map("volumes_done")
+  rating      Int?
+  note        String?
+
+  @@index([userId])
+  @@index([bookId])
+  @@index([syncSeq])
+  @@map("readings")
+}
+
+model ReadingLog {
+  id        String @id @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  readingId String @map("reading_id") @db.Uuid
+  bookId    String @map("book_id") @db.Uuid
+  at        BigInt
+  day       String
+  pages     Int    @default(0)
+  percent   Float
+  syncSeq   BigInt @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
+
+  @@index([userId, day])
+  @@index([syncSeq])
+  @@map("reading_logs")
+}
+
+/// Per-person preferences; the row id is the user id.
+model UserSettings {
+  id               String  @id @db.Uuid
+  createdAt        BigInt  @map("created_at")
+  updatedAt        BigInt  @map("updated_at")
+  deletedAt        BigInt? @map("deleted_at")
+  createdBy        String? @map("created_by") @db.Uuid
+  updatedBy        String? @map("updated_by") @db.Uuid
+  fieldClock       Json    @default("{}") @map("field_clock")
+  syncSeq          BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
+  readingPublic    Boolean @default(true) @map("reading_public")
+  dailyPagesGoal   Int?    @map("daily_pages_goal")
+  monthlyBooksGoal Int?    @map("monthly_books_goal")
+  reminderTime     String? @map("reminder_time")
+
+  @@index([syncSeq])
+  @@map("user_settings")
+}
+
+/// Family challenges; only admins (ADMIN_USERNAMES) may write them.
+model Challenge {
+  id          String  @id @db.Uuid
+  createdAt   BigInt  @map("created_at")
+  updatedAt   BigInt  @map("updated_at")
+  deletedAt   BigInt? @map("deleted_at")
+  createdBy   String? @map("created_by") @db.Uuid
+  updatedBy   String? @map("updated_by") @db.Uuid
+  fieldClock  Json    @default("{}") @map("field_clock")
+  syncSeq     BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
+  title       String
+  description String?
+  kind        String
+  target      Int
+  categoryId  String? @map("category_id") @db.Uuid
+  startsAt    BigInt  @map("starts_at")
+  endsAt      BigInt  @map("ends_at")
+  reward      String?
+
+  @@index([syncSeq])
+  @@map("challenges")
+}
+
+/// Points and badge rewards (one row); only admins may write it.
+model Motivation {
+  id            String  @id @db.Uuid
+  createdAt     BigInt  @map("created_at")
+  updatedAt     BigInt  @map("updated_at")
+  deletedAt     BigInt? @map("deleted_at")
+  createdBy     String? @map("created_by") @db.Uuid
+  updatedBy     String? @map("updated_by") @db.Uuid
+  fieldClock    Json    @default("{}") @map("field_clock")
+  syncSeq       BigInt  @default(dbgenerated("nextval('sync_seq'::regclass)")) @map("sync_seq")
+  pointsPerPage Int     @default(1) @map("points_per_page")
+  pointsPerBook Int     @default(50) @map("points_per_book")
+  badgeRewards  Json    @default("{}") @map("badge_rewards")
+
+  @@index([syncSeq])
+  @@map("motivation")
 }

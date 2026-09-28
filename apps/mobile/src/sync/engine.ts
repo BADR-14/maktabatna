@@ -42,7 +42,16 @@ export async function push(db: SqlDb, send: Transport): Promise<number> {
       const rows = db.getAllSync<WireRow>(`SELECT ${quoted(Object.keys(spec.cols))} FROM "${spec.name}" WHERE id IN (${marks(ids.length)})`, ids);
       if (rows.length) tables[spec.name] = rows;
     }
-    if (Object.keys(tables).length) await send('/sync/push', { method: 'POST', body: { tables } });
+    if (Object.keys(tables).length) {
+      const res = await send<{ rejected?: { table: string; id: string; known: boolean }[] }>('/sync/push', { method: 'POST', body: { tables } });
+      // Rows the server refused (not ours to change): take the server's copy on the next pull,
+      // or drop the row if the server never had it.
+      for (const r of res?.rejected ?? []) {
+        if (!SYNC_TABLES.some((t) => t.name === r.table)) continue;
+        if (r.known) db.runSync("INSERT OR REPLACE INTO local_meta (key, value) VALUES (?, '1')", [`sync_force:${r.table}:${r.id}`]);
+        else db.runSync(`DELETE FROM "${r.table}" WHERE id = ?`, [r.id]);
+      }
+    }
     db.runSync('DELETE FROM sync_outbox WHERE id <= ?', [maxId]);
     sent += batch.length;
   }
@@ -66,8 +75,11 @@ export function applyPulled(db: SqlDb, tables: Record<string, WireRow[]>): Set<s
           .map((c) => `"${c}" = excluded."${c}"`)
           .join(', ')}`;
         for (const row of rows) {
-          const local = db.getFirstSync<WireRow>(`SELECT ${quoted(cols)} FROM "${spec.name}" WHERE id = ?`, [String(row.id)]);
+          const forceKey = `sync_force:${spec.name}:${row.id}`;
+          const forced = !!db.getFirstSync('SELECT 1 FROM local_meta WHERE key = ?', [forceKey]);
+          const local = forced ? null : db.getFirstSync<WireRow>(`SELECT ${quoted(cols)} FROM "${spec.name}" WHERE id = ?`, [String(row.id)]);
           const merged = mergeRows(spec, local, row);
+          if (forced) db.runSync('DELETE FROM local_meta WHERE key = ?', [forceKey]);
           if (!merged) continue;
           db.runSync(upsert, cols.map((c) => merged[c] ?? null));
           if (spec.name === 'books') touched.add(String(row.id));

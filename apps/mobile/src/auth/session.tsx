@@ -4,12 +4,13 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
 import { db } from '@/db/client';
 import { users } from '@/db/schema';
-import { api, TOKEN_KEYS as KEYS } from '@/lib/api';
+import { api, authedApi, TOKEN_KEYS as KEYS } from '@/lib/api';
 
-export type SessionUser = { id: string; displayName: string; username: string };
+export type SessionUser = { id: string; displayName: string; username: string; /** Parents: manage challenges and rewards (set on the server). */ isAdmin?: boolean };
 type AuthResponse = { accessToken: string; refreshToken: string; user: SessionUser };
 
 type SessionState = {
@@ -47,6 +48,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, []);
+
+  // Keep name and admin flag current (the parents' role is set on the server).
+  useEffect(() => {
+    if (status !== 'signedIn') return;
+    const refresh = () =>
+      authedApi<SessionUser>('/auth/me')
+        .then(async (me) => {
+          await SecureStore.setItemAsync(KEYS.user, JSON.stringify(me));
+          setUser((u) => (u && (u.isAdmin !== me.isAdmin || u.displayName !== me.displayName) ? me : u));
+        })
+        .catch(() => {});
+    refresh();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && refresh());
+    return () => sub.remove();
+  }, [status]);
 
   const accept = useCallback(async (res: AuthResponse) => {
     await Promise.all([

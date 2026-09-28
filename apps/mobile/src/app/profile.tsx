@@ -6,13 +6,17 @@ import { File, Paths } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, type Href } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { Avatar } from '@/components/avatar';
 import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
 import { setAvatar } from '@/db/mutations';
+import { saveSettings, type SettingsPatch } from '@/db/reading';
+import { readersQuery } from '@/db/reading-queries';
+import { ensureNotificationPermission, rescheduleReminders } from '@/lib/reminders';
+import { Chip } from '@/components/book-browser';
 import { loansQuery, trashQuery, userQuery } from '@/db/queries';
 import { authedApi } from '@/lib/api';
 import { googleAvailable, pickGoogleAccount } from '@/lib/google';
@@ -111,6 +115,7 @@ export default function Profile() {
       <SyncCard onSignInAgain={signOut} />
 
       <Section title="المكتبة">
+        <LinkRow icon="book-outline" label="لوحة القراءة" href="/reading" />
         <LinkRow icon="stats-chart-outline" label="الإحصائيات والنواقص" href="/stats" />
         <LinkRow icon="people-outline" label="الإعارات" href="/loans" badge={onLoan} />
         <LinkRow icon="swap-vertical-outline" label="الاستيراد والتصدير" href="/data" />
@@ -120,6 +125,10 @@ export default function Profile() {
       <Section title="الحساب">
         <Row icon="image-outline" label={hasPhoto ? 'تغيير الصورة' : 'إضافة صورة'} onPress={choosePhoto} />
         {googleAvailable ? <Row icon="logo-google" label="ربط حساب Google" onPress={linkGoogle} /> : null}
+      </Section>
+
+      <Section title="القراءة">
+        <ReadingPrefs userId={user.id} />
       </Section>
 
       <Section title="المظهر">
@@ -151,6 +160,67 @@ export default function Profile() {
         مكتبتنا، الإصدار {Constants.expoConfig?.version ?? '1.0.0'}
       </AppText>
     </ScrollView>
+  );
+}
+
+const GOALS: (number | null)[] = [null, 10, 20, 30, 50];
+const MONTHLY: (number | null)[] = [null, 1, 2, 4];
+const TIMES: [string | null, string][] = [
+  [null, 'بدون'],
+  ['07:00', '٧ صباحاً'],
+  ['14:00', '٢ ظهراً'],
+  ['20:00', '٨ مساءً'],
+  ['22:00', '١٠ مساءً'],
+];
+
+/** Privacy, goals and the daily reminder, saved in the synced user_settings row. */
+function ReadingPrefs({ userId }: { userId: string }) {
+  const c = useColors();
+  const { data } = useLiveQuery(readersQuery);
+  const me = data.find((r) => r.id === userId);
+  const isPublic = me ? !!me.readingPublic : true;
+  const save = async (patch: SettingsPatch) => {
+    if (patch.reminderTime && !(await ensureNotificationPermission())) {
+      Alert.alert('الإشعارات متوقفة', 'اسمح للتطبيق بالإشعارات من إعدادات الهاتف ليصلك التذكير.');
+      return;
+    }
+    saveSettings(userId, patch);
+    void rescheduleReminders(userId);
+  };
+  return (
+    <View style={{ padding: space.lg, gap: space.lg }}>
+      <View style={styles.switchRow}>
+        <View style={{ flex: 1 }}>
+          <AppText>أظهر قراءتي للعائلة</AppText>
+          <AppText variant="muted">عند الإيقاف لا تظهر في لوحة الشرف ولا في قائمة قرّاء الكتب.</AppText>
+        </View>
+        <Switch value={isPublic} onValueChange={(v) => save({ readingPublic: v })} trackColor={{ true: c.primary }} />
+      </View>
+      <Choice label="هدف يومي (صفحات)">
+        {GOALS.map((g) => (
+          <Chip key={String(g)} label={g ? formatArabicNumber(g) : 'بدون'} on={(me?.dailyPagesGoal ?? null) === g} onPress={() => save({ dailyPagesGoal: g })} />
+        ))}
+      </Choice>
+      <Choice label="هدف شهري (كتب)">
+        {MONTHLY.map((g) => (
+          <Chip key={String(g)} label={g ? formatArabicNumber(g) : 'بدون'} on={(me?.monthlyBooksGoal ?? null) === g} onPress={() => save({ monthlyBooksGoal: g })} />
+        ))}
+      </Choice>
+      <Choice label="تذكير يومي بالقراءة">
+        {TIMES.map(([t, label]) => (
+          <Chip key={String(t)} label={label} on={(me?.reminderTime ?? null) === t} onPress={() => save({ reminderTime: t })} />
+        ))}
+      </Choice>
+    </View>
+  );
+}
+
+function Choice({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={{ gap: 6 }}>
+      <AppText variant="muted">{label}</AppText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>{children}</View>
+    </View>
   );
 }
 
@@ -251,6 +321,7 @@ const styles = StyleSheet.create({
   head: { alignItems: 'center', gap: 2, paddingVertical: space.lg },
   camera: { position: 'absolute', bottom: 2, left: 2, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
   card: { borderRadius: radius.md + 4, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   sync: { flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg },
   syncBtn: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: space.md, paddingVertical: 5 },
   segment: { flexDirection: 'row', margin: space.sm, borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },

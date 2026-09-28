@@ -5,15 +5,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import { Stack } from 'expo-router';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
+import { PressLink } from '@/components/press-link';
 import { AppText } from '@/components/text';
+import { VoiceSheet } from '@/components/voice';
 import { Button, ErrorBox } from '@/components/ui';
 import { exportCatalogCsv, importBooks, type ImportResult } from '@/db/catalog-io';
+import { useLiveQuery } from '@/db/live';
+import { allShelvesQuery } from '@/db/queries';
 import { parseCsv, readImport, type ImportLine } from '@/lib/catalog-csv';
+import { labelsHtml } from '@/lib/labels';
 import { count } from '@/lib/plural';
 import { fonts, radius, space, useColors } from '@/theme';
 
@@ -24,6 +30,7 @@ export default function DataScreen() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'pick' | 'import' | 'export' | null>(null);
+  const { data: shelves } = useLiveQuery(allShelvesQuery);
 
   async function pick() {
     setError(null);
@@ -142,6 +149,29 @@ export default function DataScreen() {
         <Button title="تصدير ومشاركة" onPress={runExport} loading={busy === 'export'} />
       </Card>
 
+      <Card icon="qr-code-outline" title="ملصقات رموز الرفوف">
+        <AppText variant="muted">ملف للطباعة فيه رمز QR لكل رف ولأعلى كل مكتبة، مرتّب حسب الغرفة ثم المكتبة. امسح الرمز لفتح الرف أو لتحديد المكان عند الإدخال.</AppText>
+        <Button
+          title="طباعة الملصقات"
+          onPress={async () => {
+            try {
+              await Print.printAsync({ html: labelsHtml(shelves) });
+            } catch (e) {
+              setError(e instanceof Error ? e.message : String(e));
+            }
+          }}
+        />
+      </Card>
+
+      {VoiceSheet ? (
+        <Card icon="mic-outline" title="الإدخال الصوتي السريع">
+          <AppText variant="muted">اختر الرف مرة واحدة ثم قل الكتب واحداً تلو الآخر.</AppText>
+          <PressLink href="/voice" style={({ pressed }) => [styles.link, { borderColor: c.accent, opacity: pressed ? 0.7 : 1 }]}>
+            <AppText style={{ color: c.accentText, fontFamily: fonts.semibold }}>ابدأ الإدخال الصوتي</AppText>
+          </PressLink>
+        </Card>
+      ) : null}
+
       <Card icon="server-outline" title="النسخة الاحتياطية الكاملة">
         <AppText variant="muted">
           كل الكتب محفوظة على الخادم بعد المزامنة. لنسخها على فلاشة، شغّل على حاسوب الخادم الأمر الموجود في README (قسم «النسخ الاحتياطي»).
@@ -153,7 +183,15 @@ export default function DataScreen() {
   );
 }
 
-function Card({ icon, title, children }: { icon: 'cloud-upload-outline' | 'cloud-download-outline' | 'server-outline'; title: string; children: React.ReactNode }) {
+function Card({
+  icon,
+  title,
+  children,
+}: {
+  icon: 'cloud-upload-outline' | 'cloud-download-outline' | 'server-outline' | 'qr-code-outline' | 'mic-outline';
+  title: string;
+  children: React.ReactNode;
+}) {
   const c = useColors();
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }]}>
@@ -174,4 +212,5 @@ const styles = StyleSheet.create({
   preview: { borderRadius: radius.md, padding: space.md, gap: space.xs },
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
   done: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  link: { borderWidth: 1, borderRadius: radius.md, alignItems: 'center', paddingVertical: space.md },
 });

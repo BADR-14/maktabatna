@@ -10,6 +10,9 @@ export const NOUNS = {
   shelf: ['رف', 'رفّان', 'رفوف', 'رفّاً'],
   result: ['نتيجة', 'نتيجتان', 'نتائج', 'نتيجةً'],
   copy: ['نسخة', 'نسختان', 'نسخ', 'نسخةً'],
+  day: ['يوم', 'يومان', 'أيام', 'يوماً'],
+  page: ['صفحة', 'صفحتان', 'صفحات', 'صفحةً'],
+  point: ['نقطة', 'نقطتان', 'نقاط', 'نقطةً'],
 } as const satisfies Record<string, Forms>;
 
 /**
@@ -18,7 +21,7 @@ export const NOUNS = {
  */
 export function count(n: number, noun: keyof typeof NOUNS): string {
   const [one, two, few, many] = NOUNS[noun];
-  if (n === 1) return `${one} ${noun === 'bookcase' || noun === 'result' || noun === 'copy' ? 'واحدة' : 'واحد'}`;
+  if (n === 1) return `${one} ${['bookcase', 'result', 'copy', 'page', 'point'].includes(noun) ? 'واحدة' : 'واحد'}`;
   if (n === 2) return two;
   const r = n % 100;
   const word = r >= 3 && r <= 10 ? few : r >= 11 && r <= 99 ? many : one;

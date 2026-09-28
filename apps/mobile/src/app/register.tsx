@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { useSession } from '@/auth/session';
 import { AuthShell } from '@/components/auth-shell';
 import { Owl, useOwl } from '@/components/owl';
+import { ServerSettings, useServerAddress } from '@/components/server-settings';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
 import { space, useColors } from '@/theme';
@@ -26,6 +27,8 @@ export default function Register() {
     return { onFocus: o.onFocus, onBlur: o.onBlur };
   };
 
+  const { server, setServer, save: saveServer } = useServerAddress();
+
   async function submit() {
     if (Object.values(form).some((v) => !v.trim())) {
       setError('يرجى تعبئة جميع الحقول');
@@ -34,6 +37,7 @@ export default function Register() {
     setBusy(true);
     setError(null);
     try {
+      await saveServer();
       await register(form);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -75,6 +79,7 @@ export default function Register() {
           </AppText>
         </Link>
       </View>
+      <ServerSettings server={server} setServer={setServer} />
     </AuthShell>
   );
 }

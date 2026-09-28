@@ -37,6 +37,11 @@ packages/shared  كود مشترك: تطبيع النص العربي، والأ�
    Set-Content .env "JWT_SECRET=$secret`nINVITE_CODE=bayt2026`nPOSTGRES_PASSWORD=maktabatna"
    ```
    رمز الدعوة هو يلي بيحتاجه أهل البيت ليفتحوا حساب.
+5. حط أسماء مستخدمي المشرفين (حساب الأب والأم) بسطر جديد بملف `.env`، مفصولين بفاصلة. هدول بس بيتحكّموا بالتحديات والنقاط والمكافآت:
+   ```
+   ADMIN_USERNAMES=abu_ahmad,um_ahmad
+   ```
+   بعد أي تعديل على `.env`، شغّل `docker compose up -d --build`.
 
 ### كل مرة
 **1. شغّل السيرفر** (Docker Desktop لازم يكون شغّال):

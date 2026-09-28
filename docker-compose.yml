@@ -30,6 +30,8 @@ services:
       INVITE_CODE: ${INVITE_CODE:?Set INVITE_CODE in .env (see .env.example)}
       # Optional: enables "sign in with Google" (docs/GOOGLE_SIGN_IN.md).
       GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
+      # The parents' usernames, comma separated: they manage reading challenges, points and rewards.
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
     ports:
       - "3000:3000"
 

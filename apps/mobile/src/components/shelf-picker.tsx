@@ -2,18 +2,23 @@
 import { toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from '@/db/live';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Chip } from '@/components/book-browser';
 import { AppText } from '@/components/text';
 import { allShelvesQuery } from '@/db/queries';
-import { space } from '@/theme';
+import { scanForShelf } from '@/lib/scan';
+import { fonts, radius, space, useColors } from '@/theme';
 
 export function shelfLabel(kind: string, n: number) {
   return kind === 'top' ? 'أعلى المكتبة' : `الرف ${toArabicDigits(n)}`;
 }
 
-export function ShelfPicker({ value, onChange }: { value: string | null; onChange: (shelfId: string) => void }) {
+export function ShelfPicker({ value, onChange, allowScan }: { value: string | null; onChange: (shelfId: string) => void; /** Not inside a modal: the scanner opens as a screen. */ allowScan?: boolean }) {
+  const c = useColors();
+  const router = useRouter();
   const { data } = useLiveQuery(allShelvesQuery);
   const all = data ?? [];
   const current = all.find((s) => s.shelfId === value);
@@ -31,6 +36,21 @@ export function ShelfPicker({ value, onChange }: { value: string | null; onChang
 
   return (
     <View style={{ gap: space.md }}>
+      {allowScan ? (
+        <Pressable
+          onPress={async () => {
+            const id = await scanForShelf(router);
+            if (!id) return;
+            const s = all.find((x) => x.shelfId === id);
+            setRoomId(s?.roomId ?? null);
+            setBookcaseId(s?.bookcaseId ?? null);
+            onChange(id);
+          }}
+          style={[styles.scan, { borderColor: c.accent }]}>
+          <Ionicons name="qr-code-outline" size={18} color={c.accentText} />
+          <AppText style={{ color: c.accentText, fontFamily: fonts.semibold }}>مسح رمز الرف</AppText>
+        </Pressable>
+      ) : null}
       <Step title="الغرفة">
         {rooms.map(([id, name]) => (
           <Chip
@@ -76,4 +96,7 @@ function Step({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-const styles = StyleSheet.create({ wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm } });
+const styles = StyleSheet.create({
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  scan: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderWidth: 1, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: 8 },
+});

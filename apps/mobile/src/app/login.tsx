@@ -1,14 +1,14 @@
 import { Link } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { TextInput, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { AuthShell } from '@/components/auth-shell';
 import { GoogleSignIn } from '@/components/google-button';
 import { Owl, useOwl } from '@/components/owl';
+import { ServerSettings, useServerAddress } from '@/components/server-settings';
 import { AppText } from '@/components/text';
 import { Button, ErrorBox, Field } from '@/components/ui';
-import { api, getServerUrl, setServerUrl } from '@/lib/api';
 import { space, useColors } from '@/theme';
 
 export default function Login() {
@@ -18,16 +18,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [showServer, setShowServer] = useState(false);
-  const [server, setServer] = useState('');
-  const [check, setCheck] = useState<string | null>(null);
+  const { server, setServer, save: saveServer } = useServerAddress();
   const passwordRef = useRef<TextInput>(null);
   const owl = useOwl();
   const userOwl = owl.text(username);
-
-  useEffect(() => {
-    getServerUrl().then(setServer);
-  }, []);
 
   async function submit() {
     if (!username.trim() || !password) {
@@ -37,7 +31,7 @@ export default function Login() {
     setBusy(true);
     setError(null);
     try {
-      await setServerUrl(server);
+      await saveServer();
       await signIn(username, password);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -76,7 +70,7 @@ export default function Login() {
       />
       <ErrorBox message={error} />
       <Button title="دخول" onPress={submit} loading={busy} />
-      <GoogleSignIn beforeSignIn={() => setServerUrl(server)} />
+      <GoogleSignIn beforeSignIn={saveServer} />
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.xs }}>
         <AppText variant="muted">ليس لديك حساب؟</AppText>
         <Link href="/register" replace>
@@ -85,41 +79,7 @@ export default function Login() {
           </AppText>
         </Link>
       </View>
-      <Pressable onPress={() => setShowServer((v) => !v)} hitSlop={8}>
-        <AppText variant="muted" style={{ textAlign: 'center' }}>
-          {showServer ? 'إخفاء عنوان الخادم' : 'عنوان الخادم'}
-        </AppText>
-      </Pressable>
-      {showServer ? (
-        <Field
-          label="عنوان الخادم"
-          value={server}
-          onChangeText={setServer}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          hint="يُعبّأ تلقائياً. غيّره فقط إذا تعذّر الاتصال."
-        />
-      ) : null}
-      {showServer ? (
-        <Pressable
-          hitSlop={8}
-          onPress={async () => {
-            setCheck('جارٍ الاختبار…');
-            await setServerUrl(server);
-            try {
-              await api('/health');
-              setCheck('✓ الخادم متصل ويعمل');
-            } catch (e) {
-              setCheck(e instanceof Error ? e.message : String(e));
-            }
-          }}>
-          <AppText variant="label" style={{ color: c.accentText, textAlign: 'center' }}>
-            اختبر الاتصال
-          </AppText>
-        </Pressable>
-      ) : null}
-      {showServer && check ? <AppText variant="muted" style={{ textAlign: 'center' }}>{check}</AppText> : null}
+      <ServerSettings server={server} setServer={setServer} />
     </AuthShell>
   );
 }

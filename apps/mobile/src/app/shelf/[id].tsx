@@ -1,11 +1,14 @@
 import { toArabicDigits } from '@maktabatna/shared';
 import { useLiveQuery } from '@/db/live';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { BookRow } from '@/components/book-row';
+import { Ionicons } from '@expo/vector-icons';
 import { AddBookFab } from '@/components/fab';
+import { HeaderSearch } from '@/components/header-search';
+import { VoiceSheet } from '@/components/voice';
 import { AppText } from '@/components/text';
 import { count } from '@/lib/plural';
 import { shelfQuery, shelfVolumesQuery } from '@/db/queries';
@@ -17,6 +20,7 @@ type Run = { key: string; bookId: string; title: string; author: string | null; 
 export default function ShelfScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = useColors();
+  const router = useRouter();
   const { data } = useLiveQuery(shelfQuery(id), [id]);
   const { data: vols } = useLiveQuery(shelfVolumesQuery(id), [id]);
   const s = data?.[0];
@@ -58,7 +62,21 @@ export default function ShelfScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title }} />
+      <Stack.Screen
+        options={{
+          title,
+          headerRight: () => (
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              <HeaderSearch />
+              {VoiceSheet ? (
+                <Pressable onPress={() => router.push({ pathname: '/voice', params: { shelfId: id } })} hitSlop={8} accessibilityLabel="إدخال صوتي لهذا الرف" style={{ padding: 6 }}>
+                  <Ionicons name="mic-outline" size={22} color={c.onPrimary} />
+                </Pressable>
+              ) : null}
+            </View>
+          ),
+        }}
+      />
       <FlatList
         data={runs}
         keyExtractor={(r) => r.key}

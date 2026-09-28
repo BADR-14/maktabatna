@@ -14,6 +14,7 @@ import { SessionProvider, useSession } from '@/auth/session';
 import { HeaderSearch } from '@/components/header-search';
 import { Intro } from '@/components/intro';
 import { db } from '@/db/client';
+import { rescheduleReminders } from '@/lib/reminders';
 import { startAutoSync } from '@/sync';
 import { applyStoredTheme, fonts, useColors } from '@/theme';
 
@@ -95,7 +96,7 @@ export default function RootLayout() {
 /** Signed-out people only see login/register; everything else needs an account. */
 function RootStack() {
   const colors = useColors();
-  const { status } = useSession();
+  const { status, user } = useSession();
 
   useEffect(() => {
     if (status !== 'loading') SplashScreen.hideAsync();
@@ -105,6 +106,11 @@ function RootStack() {
   useEffect(() => {
     if (status === 'signedIn') return startAutoSync();
   }, [status]);
+
+  // The daily reading reminder is local; refresh it each launch (it skips days already read).
+  useEffect(() => {
+    if (user?.id) void rescheduleReminders(user.id);
+  }, [user?.id]);
 
   if (status === 'loading') return null;
   const signedIn = status === 'signedIn';
@@ -134,6 +140,9 @@ function RootStack() {
         <Stack.Screen name="loans" options={{ title: 'الإعارات' }} />
         <Stack.Screen name="data" options={{ title: 'الاستيراد والتصدير' }} />
         <Stack.Screen name="book/history" options={{ title: 'سجل التعديلات' }} />
+        <Stack.Screen name="reading" options={{ title: 'القراءة' }} />
+        <Stack.Screen name="scan" options={{ title: 'مسح رمز الرف', headerRight: () => null }} />
+        <Stack.Screen name="voice" options={{ title: 'الإدخال الصوتي' }} />
       </Stack.Protected>
       <Stack.Protected guard={!signedIn}>
         <Stack.Screen name="login" options={{ headerShown: false }} />

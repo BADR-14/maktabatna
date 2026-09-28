@@ -20,7 +20,14 @@ export type SyncTable = {
   cols: Record<string, ColType>;
   /** 'merge': field-level merge; 'append': insert-only (history); 'pull': server-owned, phones only receive. */
   mode: 'merge' | 'append' | 'pull';
+  /** Only the person this column names may write the row (the server checks it). */
+  owner?: string;
+  /** Only admins (ADMIN_USERNAMES on the server) may write these rows. */
+  adminOnly?: boolean;
 };
+
+/** The single row of the `motivation` table (points and badge rewards). */
+export const MOTIVATION_ID = '93a59f16-96bd-5461-805c-476ece977e6c';
 
 /** In foreign-key order, so parents arrive before children. */
 export const SYNC_TABLES: SyncTable[] = [
@@ -70,6 +77,7 @@ export const SYNC_TABLES: SyncTable[] = [
       publisher: 'text',
       edition: 'text',
       total_volumes: 'int',
+      page_count: 'int',
       notes: 'text',
     },
   },
@@ -97,6 +105,58 @@ export const SYNC_TABLES: SyncTable[] = [
     name: 'loans',
     mode: 'merge',
     cols: { ...COMMON, copy_id: 'uuid', borrower: 'text', loaned_at: 'bigint', due_at: 'bigint', returned_at: 'bigint', notes: 'text' },
+  },
+  {
+    name: 'readings',
+    mode: 'merge',
+    owner: 'user_id',
+    cols: {
+      ...COMMON,
+      user_id: 'uuid',
+      book_id: 'uuid',
+      status: 'text',
+      started_at: 'bigint',
+      finished_at: 'bigint',
+      page: 'int',
+      percent: 'float',
+      volumes_done: 'int',
+      rating: 'int',
+      note: 'text',
+    },
+  },
+  {
+    name: 'reading_logs',
+    mode: 'append',
+    owner: 'user_id',
+    cols: { id: 'uuid', user_id: 'uuid', reading_id: 'uuid', book_id: 'uuid', at: 'bigint', day: 'text', pages: 'int', percent: 'float' },
+  },
+  {
+    name: 'user_settings',
+    mode: 'merge',
+    owner: 'id',
+    cols: { ...COMMON, reading_public: 'bool', daily_pages_goal: 'int', monthly_books_goal: 'int', reminder_time: 'text' },
+  },
+  {
+    name: 'challenges',
+    mode: 'merge',
+    adminOnly: true,
+    cols: {
+      ...COMMON,
+      title: 'text',
+      description: 'text',
+      kind: 'text',
+      target: 'int',
+      category_id: 'uuid',
+      starts_at: 'bigint',
+      ends_at: 'bigint',
+      reward: 'text',
+    },
+  },
+  {
+    name: 'motivation',
+    mode: 'merge',
+    adminOnly: true,
+    cols: { ...COMMON, points_per_page: 'int', points_per_book: 'int', badge_rewards: 'json' },
   },
   {
     name: 'change_log',

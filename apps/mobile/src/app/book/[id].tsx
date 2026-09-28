@@ -11,6 +11,7 @@ import { Chip } from '@/components/book-browser';
 import { BookCover } from '@/components/book-cover';
 import { HeaderSearch } from '@/components/header-search';
 import { PressLink } from '@/components/press-link';
+import { ReadingCard } from '@/components/reading-card';
 import { ShelfPicker, shelfLabel } from '@/components/shelf-picker';
 import { AppText } from '@/components/text';
 import { Button, Field } from '@/components/ui';
@@ -53,6 +54,7 @@ export default function BookScreen() {
     ['دار النشر', book.publisher],
     ['الطبعة', book.edition],
     ['عدد المجلدات', toArabicDigits(book.totalVolumes)],
+    ['عدد الصفحات', book.pageCount ? toArabicDigits(book.pageCount) : null],
     ['النسخ في البيت', copies > 1 ? `${count(copies, 'copy')} (مكرر)` : toArabicDigits(copies)],
     ['ملاحظات', book.notes],
   ];
@@ -173,6 +175,8 @@ export default function BookScreen() {
                 </View>
               );
             })}
+            <ReadingCard book={{ id: book.id, pageCount: book.pageCount, totalVolumes: book.totalVolumes }} />
+
             <AppText style={styles.section}>الإعارة</AppText>
             {loans.map((l) => (
               <View key={l.id} style={[styles.loan, { backgroundColor: c.tint }]}>

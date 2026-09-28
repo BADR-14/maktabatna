@@ -5,11 +5,12 @@ import { hash, verify } from '@node-rs/argon2';
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 
 import { PrismaService } from '../prisma.service.ts';
+import { isAdmin } from './admins.ts';
 import type { GoogleDto, LoginDto, RegisterDto } from './auth.dto.ts';
 
 const REFRESH_TTL_MS = 180 * 24 * 60 * 60 * 1000; // 6 months: phones stay signed in, offline included
 
-export type PublicUser = { id: string; displayName: string; username: string };
+export type PublicUser = { id: string; displayName: string; username: string; isAdmin: boolean };
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
@@ -182,5 +183,5 @@ export class AuthService {
 }
 
 function toPublic(user: { id: string; displayName: string; username: string }): PublicUser {
-  return { id: user.id, displayName: user.displayName, username: user.username };
+  return { id: user.id, displayName: user.displayName, username: user.username, isAdmin: isAdmin(user.username) };
 }

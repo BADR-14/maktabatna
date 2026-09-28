@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { mergeRows, SYNC_TABLE_BY_NAME, SYNC_TABLES, type ColType, type SyncTable, type WireRow } from './spec.ts';
 
 import type { Prisma } from '../generated/prisma/client.ts';
+import { isAdmin } from '../auth/admins.ts';
 import { PrismaService } from '../prisma.service.ts';
 
 /** Pushes and the pull cursor read share this lock, so a pull never skips a push still in flight. */
@@ -47,7 +48,7 @@ export class SyncService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Merges a batch of changed rows from a phone, field by field, under row locks. */
-  async push(body: PushBody) {
+  async push(body: PushBody, userId: string) {
     const tables = body?.tables ?? {};
     let total = 0;
     for (const [name, rows] of Object.entries(tables)) {
@@ -59,22 +60,28 @@ export class SyncService {
     }
     if (total > MAX_PUSH_ROWS) throw new BadRequestException('دفعة كبيرة جداً');
 
+    const me = await this.prisma.user.findUnique({ where: { id: userId }, select: { username: true, deletedAt: true } });
+    const admin = !!me && me.deletedAt === null && isAdmin(me.username);
     let applied = 0;
+    const rejected: { table: string; id: string; known: boolean }[] = [];
     await this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${SYNC_LOCK})`);
         // Parents before children, whatever order the phone sent.
         for (const spec of SYNC_TABLES) {
           const rows = tables[spec.name];
-          if (rows?.length) applied += await this.pushTable(tx, spec, rows);
+          if (!rows?.length) continue;
+          const r = await this.pushTable(tx, spec, rows, userId, admin);
+          applied += r.applied;
+          rejected.push(...r.rejected.map((x) => ({ table: spec.name, ...x })));
         }
       },
       { timeout: 60_000 },
     );
-    return { applied };
+    return { applied, rejected };
   }
 
-  private async pushTable(tx: Tx, spec: SyncTable, rows: WireRow[]) {
+  private async pushTable(tx: Tx, spec: SyncTable, rows: WireRow[], userId: string, admin: boolean) {
     const cols = Object.keys(spec.cols);
     const list = cols.map((c) => `"${c}"`).join(', ');
     const ids = rows.map((r) => String(r.id));
@@ -84,8 +91,17 @@ export class SyncService {
     );
     const current = new Map(found.map((r) => [String(r.id), toWire(spec, r)]));
     let applied = 0;
+    const rejected: { id: string; known: boolean }[] = [];
     for (const incoming of rows) {
       const existing = current.get(String(incoming.id)) ?? null;
+      // Someone else's reading, or a parents-only row from a non-admin: refuse it, and bump the
+      // stored row so the phone that sent it pulls the real one back.
+      const notMine = spec.owner && (incoming[spec.owner] !== userId || (existing && existing[spec.owner] !== userId));
+      if ((spec.adminOnly && !admin) || notMine) {
+        rejected.push({ id: String(incoming.id), known: !!existing });
+        if (existing) await tx.$executeRawUnsafe(`UPDATE "${spec.name}" SET sync_seq = nextval('sync_seq') WHERE id = $1::uuid`, String(incoming.id));
+        continue;
+      }
       const merged = mergeRows(spec, existing, incoming);
       if (!merged) continue;
       const params = cols.map((c) => toParam(spec.cols[c], merged[c]));
@@ -102,7 +118,7 @@ export class SyncService {
       current.set(String(merged.id), merged);
       applied++;
     }
-    return applied;
+    return { applied, rejected };
   }
 
   /** Every change after `since`, oldest first, at most one window at a time. */
